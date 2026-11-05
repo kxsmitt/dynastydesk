@@ -1207,7 +1207,7 @@ function matchupCard(mu, s, gd) {
     <a class="mu-teams" href="#match-${gd.week}-${mu.a.mid}" aria-label="Open head-to-head view">${sideRow(mu.a, mu.b)}${sideRow(mu.b, mu.a)}</a>
     <div class="wp" role="img" aria-label="Win probability ${pct(mu.pA)} to ${pct(1 - mu.pA)}"><span style="width:${mu.pA * 100}%;background:${ca}"></span><span style="width:${(1 - mu.pA) * 100}%;background:${cb}"></span></div>
     <div class="wp-l"><span>${gd.isPast ? (mu.a.pts > mu.b.pts ? "WIN" : mu.a.pts < mu.b.pts ? "LOSS" : "TIE") : pct(mu.pA)}</span><span>${gd.isPast ? "" : "win odds"}</span><span>${gd.isPast ? (mu.b.pts > mu.a.pts ? "WIN" : mu.b.pts < mu.a.pts ? "LOSS" : "TIE") : pct(1 - mu.pA)}</span></div>
-    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week))}</div>
+    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week) + stakesLine(mu, s, gd))}</div>
     <a class="mu-open" href="#match-${gd.week}-${mu.a.mid}">Head-to-head view <span aria-hidden="true">→</span></a>
   </article>`;
 }
