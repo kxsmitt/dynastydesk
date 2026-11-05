@@ -822,24 +822,27 @@ function playoffOdds(season, gd) {
   if (!remain.length) return null;
   const byes = pt > 1 ? Math.pow(2, Math.ceil(Math.log2(pt))) - pt : 0;
   const N = CONFIG.SIMULATIONS;
-  const res = Object.fromEntries(rids.map(r => [r, { playoff: 0, bye: 0, seed1: 0, wins: 0 }]));
+  const res = Object.fromEntries(rids.map(r => [r, { playoff: 0, bye: 0, seed1: 0, wins: 0, winN: 0, poWin: 0, lossN: 0, poLoss: 0 }]));
+  const firstWeek = remain[0].w;
   const base = Object.fromEntries(season.standings.map(r => [r.rid, { w: r.w + r.t / 2, pf: r.pf }]));
   for (let n = 0; n < N; n++) {
     const st = {}; for (const r of rids) st[r] = { w: base[r].w, pf: base[r].pf, rid: r };
+    const wonFirst = {};
     for (const { w, pairs } of remain) {
       const sc = {};
       for (const r of rids) {
         const live = gd && gd.week === w ? gd.sides[r] : null;
         sc[r] = live && !gd.isPast ? live.final + Math.sqrt(live.v) * randn() : dist[r].m + dist[r].s * randn();
       }
-      for (const [x, y] of pairs) { if (!st[x] || !st[y]) continue; if (sc[x] > sc[y]) st[x].w++; else st[y].w++; st[x].pf += sc[x]; st[y].pf += sc[y]; }
+      for (const [x, y] of pairs) { if (!st[x] || !st[y]) continue; if (sc[x] > sc[y]) st[x].w++; else st[y].w++; st[x].pf += sc[x]; st[y].pf += sc[y]; if (w === firstWeek) { wonFirst[x] = sc[x] > sc[y]; wonFirst[y] = sc[y] > sc[x]; } }
       if (season.medianGame) { const med = median(Object.values(sc)); for (const r of rids) if (sc[r] > med) st[r].w++; }
     }
     const order = Object.values(st).sort((a, b) => b.w - a.w || b.pf - a.pf);
-    order.forEach((t, i) => { const R = res[t.rid]; R.wins += t.w; if (i < pt) R.playoff++; if (i < byes) R.bye++; if (i === 0) R.seed1++; });
+    order.forEach((t, i) => { const R = res[t.rid]; R.wins += t.w; if (i < pt) R.playoff++; if (i < byes) R.bye++; if (i === 0) R.seed1++;
+      if (t.rid in wonFirst) { if (wonFirst[t.rid]) { R.winN++; if (i < pt) R.poWin++; } else { R.lossN++; if (i < pt) R.poLoss++; } } });
   }
-  for (const r of rids) { const R = res[r]; R.playoff /= N; R.bye /= N; R.seed1 /= N; R.wins /= N; }
-  return { res, byes, pt, weeksLeft: remain.length };
+  for (const r of rids) { const R = res[r]; R.playoff /= N; R.bye /= N; R.seed1 /= N; R.wins /= N; R.ifWin = R.winN ? R.poWin / R.winN : null; R.ifLoss = R.lossN ? R.poLoss / R.lossN : null; }
+  return { res, byes, pt, weeksLeft: remain.length, week: firstWeek };
 }
 
 /* ---------------- dynasty values (optional source) ---------------- */
@@ -1480,6 +1483,31 @@ function benchQuip(side) {
   return "";
 }
 
+// What a win this week does to playoff odds (top 9 in the standings only)
+const STAKES = [
+  (T, w, now) => `A win would push ${T}'s playoff odds to ${w}, up from ${now}.`,
+  (T, w, now) => `${T} sits at ${now} to make the playoffs; a W bumps that to ${w}.`,
+  (T, w, now) => `Win this and ${T} is at ${w} to make the playoffs. Right now: ${now}.`,
+  (T, w, now) => `Stakes for ${T}: ${now} playoff odds today, ${w} with a win.`,
+  (T, w, now) => `For ${T}, this one is worth a jump from ${now} to ${w} in playoff odds.`
+];
+const STAKES_LOCK = [
+  (T, w, now) => `${T} is already at ${now} to make the playoffs. A win just makes it official-ish (${w}).`,
+  (T, w, now) => `A win takes ${T} to ${w} playoff odds. Start ordering the hats.`
+];
+const STAKES_LONG = [
+  (T, w, now) => `Even with a win, ${T} only gets to ${w} playoff odds. Miracles accepted.`,
+  (T, w, now) => `A win nudges ${T} to ${w} playoff odds. Long shot, but the dream lives.`
+];
+function stakesLine(mu, s, gd) {
+  const o = STATE.odds;
+  if (!o || gd.isPast || gd.week !== o.week) return "";
+  return [mu.a, mu.b].filter(x => (s.rec[x.rid]?.rank ?? 99) <= 9).map(x => {
+    const r = o.res[x.rid]; if (r?.ifWin == null) return "";
+    const pool = r.ifWin >= 0.97 ? STAKES_LOCK : r.ifWin < 0.05 ? STAKES_LONG : STAKES;
+    return " " + fresh(pool, x.oid + gd.week + "stakes", teamName(x.oid), pct(r.ifWin), pct(r.playoff));
+  }).join("");
+}
 function viewMatch(s, gd, mid) {
   const mu = gd.matchups.find(m => m.a.mid === mid);
   if (!mu) return `<a class="back" href="#gameday">← Back to week ${gd.week}</a><div class="panel" style="margin-top:16px"><h3>Matchup not found</h3><p class="muted">It may not exist for week ${gd.week}.</p></div>`;
@@ -1502,7 +1530,7 @@ function viewMatch(s, gd, mid) {
     return `<div class="hbench"><div class="bh" style="--pos:${color(x.oid)}"><span>${esc(teamName(x.oid))} bench</span><span class="mono muted">${fmt(tot)} pts</span></div><ul>${list.map(p => `<li><div style="min-width:0"><div class="bn">${esc(pname(p.pid))}</div><div class="bm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}</div><div class="hopp">${oppLine(p, isPast)}</div></div><div class="bp mono">${fmt(p.actual, 2)}</div></li>`).join("") || `<li class="muted">Nobody on the bench.</li>`}</ul></div>`;
   };
   const quips = [benchQuip(a), benchQuip(b)].filter(Boolean);
-  const blurb = isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week);
+  const blurb = (isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week)) + stakesLine(mu, s, gd);
   return `<div class="team-top"><a class="back" href="#gameday">← All week ${gd.week} matchups</a><div class="eyebrow">${s.year} · Week ${gd.week} · ${label}${gd.anyLive ? ` · updates every ${CONFIG.POLL_SECONDS}s` : ""}</div></div>
     <section class="scoreboard">
       <div class="sb-row">${team(a, b, "l")}<div class="sb-mid"><div class="vs">VS</div></div>${team(b, a, "r")}</div>
