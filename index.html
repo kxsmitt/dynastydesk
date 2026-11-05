@@ -223,22 +223,56 @@ h4.mini{font:800 18px/1 var(--display);text-transform:uppercase;margin:0 0 10px;
 .arrow{font:700 20px var(--body);color:var(--muted);transition:transform .15s}
 .team-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;flex-wrap:wrap;margin-bottom:20px}
 .back{font:600 14px var(--body);text-decoration:none}
-.team-hero{display:flex;gap:18px;align-items:center;padding-bottom:16px;border-bottom:4px solid var(--team)}
 .av.big{width:76px;height:76px;border-radius:14px;font-size:34px;flex:none}
-.team-hero h2{font-size:clamp(34px,6vw,56px);line-height:.95;text-wrap:balance}
 .tquip{margin:6px 0 0;font:italic 400 17px/1.4 var(--story);color:var(--muted)}
-.tstats{display:flex;flex-wrap:wrap;gap:10px 36px;margin-top:16px}
-.tstat .v{font:600 24px/1.2 var(--mono);font-variant-numeric:tabular-nums}
 .tstat small{font-size:13px;color:var(--muted)}
-h3 .count{font:600 13px var(--mono);color:var(--muted);vertical-align:middle;margin-left:4px}
-table.roster td.slot{font:600 11px var(--mono);color:var(--accent);width:56px}
-table.roster .pname{font-weight:600}
 .pickgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px}
 .pickcol{display:flex;flex-direction:column;gap:6px}
 .pick-yr{font:800 22px/1 var(--display);margin-bottom:2px}
-.pick{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px}
-.pick span{color:var(--muted);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pick.r1{border-color:var(--accent);background:var(--accent-soft)}
+.team-band{background:color-mix(in srgb,var(--team) 14%,var(--surface));border:1px solid var(--line);border-top:6px solid var(--team);border-radius:var(--radius);padding:22px clamp(16px,3vw,26px) 18px;display:flex;flex-direction:column;gap:20px}
+.tb-main{display:flex;gap:18px;align-items:center}
+.team-band h2{font-size:clamp(36px,6.5vw,64px);line-height:.92;text-wrap:balance}
+.tstats{display:flex;flex-wrap:wrap;gap:12px 40px;padding-top:16px;border-top:1px solid color-mix(in srgb,var(--team) 35%,var(--line))}
+.tstat .lbl,.glance .lbl{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+.tstat .v{font:600 26px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.glance{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.glance>div{padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+.gv{font:800 22px/1.1 var(--display);text-transform:uppercase}
+.gd{font:italic 400 14px/1.35 var(--story);color:var(--muted);margin-top:3px}
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:12px}
+.pcard{position:relative;display:flex;flex-direction:column;gap:3px;min-height:122px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--pos);border-radius:var(--radius);min-width:0}
+.pcard.empty{border-style:dashed;border-left-width:1px;--pos:var(--muted)}
+.slotb{font:600 11px/1 var(--mono);letter-spacing:.1em;color:var(--pos);margin-bottom:4px}
+.pn{font:800 22px/1.02 var(--display);text-transform:uppercase;text-wrap:balance;padding-right:46px}
+.pm{font-size:13px;color:var(--muted)}
+.pp{font:600 22px/1 var(--mono);margin-top:auto;padding-top:8px}
+.pp small{font-size:12px;color:var(--muted);font-weight:500}
+.inj{display:inline-block;font:600 9px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--loss);border:1px solid var(--loss);border-radius:999px;padding:3px 6px;margin-left:6px;vertical-align:middle}
+.pcard>.inj{position:absolute;top:10px;right:10px;margin:0}
+.rk{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.bgroups{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px;align-items:start}
+.bgroup{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.bh{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px 8px;border-bottom:3px solid var(--pos,var(--muted));font:800 19px/1 var(--display);text-transform:uppercase}
+.bh .mono{font-size:12px;font-weight:500}
+.bgroup.stash .bh{border-bottom-style:dashed}
+.bgroup ul{list-style:none;margin:0;padding:2px 14px 6px}
+.bgroup li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.bgroup li:last-child{border-bottom:0}
+.bn{font-weight:600;font-size:15px;line-height:1.2}
+.bm{font-size:12px;color:var(--muted)}
+.bp{font-size:14px}
+.ticket{display:grid;grid-template-columns:52px minmax(0,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.ticket .tr{display:grid;place-items:center;font:800 20px/1 var(--display);background:var(--surface-2);border-right:2px dashed var(--line)}
+.ticket .tv{padding:10px 12px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ticket.r1{border-color:var(--accent)}
+.ticket.r1 .tr{background:var(--accent);color:var(--bg);border-right-color:var(--bg)}
+@media (max-width:640px){
+  .pcards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .pcard{min-height:0;padding:10px 11px}
+  .pn{font-size:17px;padding-right:0}
+  .pp{font-size:18px}
+  .pcard>.inj{position:static;align-self:flex-start;order:-1;margin-bottom:4px}
+}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -1185,23 +1219,52 @@ function viewFranchises() {
     <div class="ftiles">${tiles}</div>`;
 }
 
-function playerRow(pid, slot, vals, s) {
-  const p = M.players[pid] || {};
-  const ppg = s.pAvg[pid];
-  const inj = p.inj ? ` <span class="pill out" style="font-size:9px;padding:2px 5px">${esc(p.inj)}</span>` : "";
-  return `<tr>${slot !== undefined ? `<td class="slot">${esc(slotLabel(slot))}</td>` : ""}<td><span class="pname">${esc(pid && pid !== "0" ? pname(pid) : "Empty slot")}</span>${inj}</td>
-    <td class="muted">${esc(ppos(pid))}${pteam(pid) ? " · " + esc(pteam(pid)) : ""}</td><td class="n">${p.age ?? "–"}</td><td class="n">${ppg ? fmt(ppg) : "–"}</td>${vals ? `<td class="n">${vals[pid] ? Math.round(vals[pid]).toLocaleString() : "–"}</td>` : ""}</tr>`;
+const POS_COL = { QB: "hsl(352 62% 54%)", RB: "hsl(158 52% 40%)", WR: "hsl(212 66% 54%)", TE: "hsl(32 86% 50%)", K: "hsl(220 10% 55%)", DEF: "hsl(268 45% 56%)" };
+const posColor = pid => POS_COL[ppos(pid)] || "var(--muted)";
+const injTag = p => p?.inj ? `<span class="inj" title="Injury status">${esc(p.inj)}</span>` : "";
+
+function playerCard(pid, slot, s) {
+  if (!pid || pid === "0") return `<div class="pcard empty"><span class="slotb">${esc(slotLabel(slot))}</span><div class="pn">Empty slot</div><div class="pm">Someone forgot to set a lineup.</div></div>`;
+  const p = M.players[pid] || {}, ppg = s.pAvg[pid];
+  return `<div class="pcard" style="--pos:${posColor(pid)}"><span class="slotb">${esc(slotLabel(slot))}</span>${injTag(p)}
+    <div class="pn">${esc(pname(pid))}</div>
+    <div class="pm">${esc(ppos(pid))}${pteam(pid) ? " · " + esc(pteam(pid)) : ""}${p.age ? ` · ${p.age} yo` : ""}${p.exp === 0 ? ' · <span class="rk">Rookie</span>' : ""}</div>
+    <div class="pp">${ppg ? `${fmt(ppg)}<small> ppg</small>` : `<span class="muted" style="font-size:13px">No points yet</span>`}</div></div>`;
+}
+function benchRow(pid, s) {
+  const p = M.players[pid] || {}, ppg = s.pAvg[pid];
+  return `<li><div style="min-width:0"><div class="bn">${esc(pname(pid))}${p.exp === 0 ? ' <span class="rk">R</span>' : ""}</div><div class="bm">${esc(pteam(pid) || "FA")}${p.age ? ` · ${p.age} yo` : ""}${injTag(p)}</div></div><div class="bp mono">${ppg ? fmt(ppg) : "–"}</div></li>`;
 }
 
 function viewTeam(rid) {
-  const s = M.cur, oid = s.ownerOf[rid], roster = s.raw.rosters.find(r => r.roster_id === rid), vals = STATE.values;
+  const s = M.cur, oid = s.ownerOf[rid], roster = s.raw.rosters.find(r => r.roster_id === rid);
   const r = s.rec[rid], a = M.allTime[oid] || {}, odds = STATE.odds?.res[rid];
   const starters = roster.starters || [];
-  const reserve = new Set(roster.reserve || []), taxi = new Set(roster.taxi || []), startSet = new Set(starters);
-  const sortP = (x, y) => (POS_ORDER[ppos(x)] || 9) - (POS_ORDER[ppos(y)] || 9) || (vals?.[y] || 0) - (vals?.[x] || 0) || (s.pAvg[y] || 0) - (s.pAvg[x] || 0);
-  const bench = (roster.players || []).filter(p => !startSet.has(p) && !reserve.has(p) && !taxi.has(p)).sort(sortP);
-  const head = (withSlot) => `<thead><tr>${withSlot ? "<th>Slot</th>" : ""}<th>Player</th><th>Pos · NFL</th><th class="n">Age</th><th class="n">PPG</th>${vals ? '<th class="n">Value</th>' : ""}</tr></thead>`;
-  const table = (title, ids, withSlot, note) => ids.length ? `<section><h3>${title} <span class="count">${ids.length}</span></h3>${note ? `<p class="note" style="margin:-6px 0 10px">${note}</p>` : ""}<div class="tbl-wrap"><table class="roster">${head(withSlot)}<tbody>${ids.map((pid, i) => playerRow(pid, withSlot ? s.slots[i] || "" : undefined, vals, s)).join("")}</tbody></table></div></section>` : "";
+  const reserve = roster.reserve || [], taxi = roster.taxi || [];
+  const startSet = new Set(starters), rs = new Set(reserve), ts = new Set(taxi);
+  const byPpg = (x, y) => (s.pAvg[y] || 0) - (s.pAvg[x] || 0) || (M.players[x]?.age || 99) - (M.players[y]?.age || 99);
+  const bench = (roster.players || []).filter(p => !startSet.has(p) && !rs.has(p) && !ts.has(p));
+
+  // roster at a glance
+  const live = starters.filter(p => p && p !== "0");
+  const ages = live.map(p => M.players[p]?.age).filter(Boolean);
+  const avgAge = mean(ages);
+  const mvp = [...(roster.players || [])].sort(byPpg)[0];
+  const youngest = [...live].filter(p => M.players[p]?.age).sort((x, y) => M.players[x].age - M.players[y].age)[0];
+  const rookies = (roster.players || []).filter(p => M.players[p]?.exp === 0).length;
+  const ageQuip = !ages.length ? "" : avgAge >= 27.5 ? "Lineup qualifies for the senior discount." : avgAge >= 26.5 ? "Veteran savvy. Knees optional." : avgAge <= 24.5 ? "Half this lineup is still on a parent's phone plan." : "Right in the sweet spot.";
+  const glance = [
+    mvp && s.pAvg[mvp] ? ["Team MVP", esc(pname(mvp)), `${fmt(s.pAvg[mvp])} ppg`] : null,
+    ages.length ? ["Avg starter age", fmt(avgAge, 1), ageQuip] : null,
+    youngest ? ["Youngest starter", esc(pname(youngest)), `${M.players[youngest].age} years old`] : null,
+    ["Rookies on roster", String(rookies), rookies >= 5 ? "Running a daycare." : rookies === 0 ? "No patience for kids." : "Investing in the future."]
+  ].filter(Boolean);
+
+  // bench grouped by position
+  const groups = {};
+  for (const p of bench) (groups[ppos(p) || "Other"] ||= []).push(p);
+  const benchHTML = Object.keys(groups).sort((x, y) => (POS_ORDER[x] || 9) - (POS_ORDER[y] || 9)).map(pos => `<div class="bgroup" style="--pos:${POS_COL[pos] || "var(--muted)"}"><div class="bh"><span>${esc(pos)}</span><span class="mono muted">${groups[pos].length}</span></div><ul>${groups[pos].sort(byPpg).map(p => benchRow(p, s)).join("")}</ul></div>`).join("");
+  const stashHTML = [["Taxi squad", taxi], ["Injured reserve", reserve]].filter(([, l]) => l.length).map(([t, l]) => `<div class="bgroup stash"><div class="bh"><span>${t}</span><span class="mono muted">${l.length}</span></div><ul>${[...l].sort(byPpg).map(p => benchRow(p, s)).join("")}</ul></div>`).join("");
 
   // picks
   const L = picksLedger(s);
@@ -1210,38 +1273,37 @@ function viewTeam(rid) {
     .map(p => { const holder = Object.entries(L.owned).find(([, list]) => list.some(m => m.season === p.season && m.round === p.round && m.orig === rid)); return { ...p, to: holder ? +holder[0] : null }; });
   const pickCols = L.seasons.map(yr => {
     const list = mine.filter(p => p.season === yr);
-    return `<div class="pickcol"><div class="pick-yr">${yr}</div>${list.length ? list.map(p => `<div class="pick ${p.round === 1 ? "r1" : ""}"><b>Round ${p.round}</b><span>${p.orig === rid ? "Own" : "via " + esc(teamName(s.ownerOf[p.orig]))}</span></div>`).join("") : `<div class="muted" style="font-size:13px">No picks. Bold.</div>`}</div>`;
+    return `<div class="pickcol"><div class="pick-yr">${yr}</div>${list.length ? list.map(p => `<div class="ticket ${p.round === 1 ? "r1" : ""}"><div class="tr">R${p.round}</div><div class="tv">${p.orig === rid ? "Own pick" : "via " + esc(teamName(s.ownerOf[p.orig]))}</div></div>`).join("") : `<div class="muted" style="font-size:13px">Cupboard's empty.</div>`}</div>`;
   }).join("");
-  const goneHTML = gone.length ? `<p class="note" style="margin:12px 0 0">Traded away: ${gone.map(p => `${p.season} R${p.round}${p.to ? ` (now ${esc(teamName(s.ownerOf[p.to]))})` : ""}`).join(", ")}.</p>` : "";
   const firsts = mine.filter(p => p.round === 1).length;
-  const pickQuip = firsts >= 4 ? "Hoarding firsts like it's a doomsday bunker." : firsts === 0 ? "Zero first-rounders. Win-now or bust, apparently." : gone.length === 0 && mine.length === L.seasons.length * L.rounds ? "Hasn't traded a single pick. Patience or paralysis?" : "";
-
-  // last rookie draft haul
+  const pickQuip = firsts >= 4 ? "Hoarding first-rounders like it's a doomsday bunker." : firsts === 0 ? "Zero first-rounders. Win-now or bust, apparently." : gone.length === 0 ? "Hasn't moved a single pick. Patience, or paralysis?" : "";
   const drafts = M.seasons.flatMap(x => x.raw.drafts.map(d => ({ d, picks: x.raw.draftPicks[d.draft_id] }))).filter(x => x.d.status === "complete" && x.picks?.length && (x.d.settings?.rounds || 99) <= 6).sort((p, q) => (q.d.start_time || 0) - (p.d.start_time || 0));
+  const per = s.league.total_rosters || s.raw.rosters.length;
   const haul = drafts[0] ? drafts[0].picks.filter(p => p.picked_by === oid || p.roster_id === rid).sort((p, q) => p.pick_no - q.pick_no) : [];
   const nm = p => p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id);
-  const per = (s.league.total_rosters || s.raw.rosters.length);
-  const haulHTML = haul.length ? `<p class="note" style="margin:8px 0 0">${drafts[0].d.season} rookie draft: ${haul.map(p => `${p.round}.${String(((p.pick_no - 1) % per) + 1).padStart(2, "0")} ${esc(nm(p))}`).join(", ")}.</p>` : "";
 
-  const stat = (lbl, v) => `<div class="tstat"><div class="eyebrow">${lbl}</div><div class="v">${v}</div></div>`;
+  const stat = (lbl, v) => `<div class="tstat"><div class="lbl">${lbl}</div><div class="v">${v}</div></div>`;
   const quip = r && r.results.length ? formQuip(r) : "";
-  return `<div class="team-top">
-    <a class="back" href="#franchises">← All franchises</a>${teamPicker(rid)}</div>
-    <header class="team-hero" style="--team:${color(oid)}">${avatarHTML(oid, "av big")}<div style="min-width:0"><div class="eyebrow">Franchise since ${O(oid).seasons[0] || s.year}</div><h2>${esc(teamName(oid))}</h2>${quip ? `<p class="tquip">${esc(quip)}</p>` : ""}</div></header>
+  return `<div class="team-top"><a class="back" href="#franchises">← All franchises</a>${teamPicker(rid)}</div>
+  <header class="team-band" style="--team:${color(oid)}">
+    <div class="tb-main">${avatarHTML(oid, "av big")}<div style="min-width:0"><div class="eyebrow">Franchise since ${O(oid).seasons[0] || s.year}</div><h2>${esc(teamName(oid))}</h2>${quip ? `<p class="tquip">${esc(quip)}</p>` : ""}</div></div>
     <div class="tstats">
-      ${r && r.results.length ? stat(`${s.year} record`, `${recStr(r)} <small>${ordinal(r.rank)}</small>`) + stat("Points for", fmt(r.pf)) : ""}
+      ${r && r.results.length ? stat(`${s.year}`, `${recStr(r)} <small>${ordinal(r.rank)}</small>`) + stat("Points for", fmt(r.pf)) : ""}
       ${odds ? stat("Playoff odds", pct(odds.playoff)) : ""}
       ${a.g ? stat("All-time", `${a.w}-${a.l}${a.t ? "-" + a.t : ""}`) : ""}
       ${stat("Titles", a.titles ? "🏆".repeat(Math.min(a.titles, 5)) : "0")}
     </div>
-    <div class="stack" style="margin-top:20px">
-      ${table("Starting lineup", starters, true, "As currently set in Sleeper.")}
-      ${table("Bench", bench, false)}
-      ${table("Taxi squad", (roster.taxi || []).slice().sort(sortP), false)}
-      ${table("Injured reserve", (roster.reserve || []).slice().sort(sortP), false)}
-      <section><h3>Draft picks <span class="count">${mine.length}</span></h3>${pickQuip ? `<p class="note" style="margin:-6px 0 10px">${pickQuip}</p>` : ""}
-        <div class="panel"><div class="pickgrid">${pickCols}</div>${goneHTML}${haulHTML}</div></section>
-    </div>`;
+  </header>
+  <div class="glance">${glance.map(([l, v, d]) => `<div><div class="lbl">${l}</div><div class="gv">${v}</div><div class="gd">${esc(d)}</div></div>`).join("")}</div>
+  <div class="stack" style="gap:32px;margin-top:28px">
+    <section><div class="sect-h"><h3>Starting Lineup</h3><p>As set in Sleeper right now</p></div><div class="pcards">${starters.map((pid, i) => playerCard(pid, s.slots[i] || "", s)).join("")}</div></section>
+    ${bench.length || stashHTML ? `<section><div class="sect-h"><h3>The Bench</h3><p>${plural(bench.length, "player")} waiting for their moment, sorted by points per game</p></div><div class="bgroups">${benchHTML}${stashHTML}</div></section>` : ""}
+    <section><div class="sect-h"><h3>Draft Capital</h3><p>${pickQuip || `${plural(mine.length, "pick")} over the next three drafts`}</p></div>
+      <div class="pickgrid">${pickCols}</div>
+      ${gone.length ? `<p class="note" style="margin:14px 0 0">Shipped out: ${gone.map(p => `${p.season} R${p.round}${p.to ? ` (now with ${esc(teamName(s.ownerOf[p.to]))})` : ""}`).join(", ")}.</p>` : ""}
+      ${haul.length ? `<p class="note" style="margin:6px 0 0">Last rookie draft (${drafts[0].d.season}): ${haul.map(p => `${p.round}.${String(((p.pick_no - 1) % per) + 1).padStart(2, "0")} ${esc(nm(p))}`).join(", ")}.</p>` : ""}
+    </section>
+  </div>`;
 }
 
 /* ---------------- landing gate ---------------- */
