@@ -2252,8 +2252,12 @@ function journeySection() {
     return `<tr><td class="n">${i + 1}</td><td><div class="jname" style="--pos:${posColor(j.pid)}">${esc(pname(j.pid))}${j.boomerang ? ' <span class="jboom" title="Came back to a former franchise">Boomerang</span>' : ""}</div><div class="muted" style="font-size:12px">${esc(ppos(j.pid))}${p.team ? " · " + esc(p.team) : ""}${p.age ? ` · ${p.age} yo` : ""}</div></td>
       <td class="jpath">${path(j)}</td><td class="n">${j.teams}</td><td class="n">${j.trades}</td><td class="n">${j.pickups}</td><td>${j.now ? esc(teamName(j.now)) : '<span class="muted">Free agent</span>'}</td></tr>`;
   };
-  const head = `<thead><tr><th class="n">#</th><th>Player</th><th>The journey</th><th class="n">Teams</th><th class="n">Trades</th><th class="n">Pickups</th><th>Now</th></tr></thead>`;
-  const top = L.slice(0, 15), rest = L.slice(15);
+  const js = STATE.jSort ||= { k: "trades", d: -1 };
+  const keyOf = { name: j => pname(j.pid).toLowerCase(), teams: j => j.teams, stops: j => j.stints.length, trades: j => j.trades, pickups: j => j.pickups, now: j => j.now ? teamName(j.now).toLowerCase() : "~" };
+  const sorted = [...L].sort((a, b) => { const x = keyOf[js.k](a), y = keyOf[js.k](b); return (x > y ? 1 : x < y ? -1 : 0) * js.d || b.teams - a.teams || b.trades - a.trades || pname(a.pid).localeCompare(pname(b.pid)); });
+  const th = (k, lbl, n) => `<th class="${n ? "n" : ""}" aria-sort="${js.k === k ? (js.d < 0 ? "descending" : "ascending") : "none"}"><button type="button" data-jsort="${k}">${lbl}${js.k === k ? (js.d < 0 ? " ▼" : " ▲") : ""}</button></th>`;
+  const head = `<thead><tr><th class="n">#</th>${th("name", "Player")}${th("stops", "The journey")}${th("teams", "Teams", 1)}${th("trades", "Trades", 1)}${th("pickups", "Pickups", 1)}${th("now", "Now")}</tr></thead>`;
+  const top = sorted.slice(0, 15), rest = sorted.slice(15);
   const most = L[0], traded = [...L].sort((a, b) => b.trades - a.trades)[0], boom = L.find(j => j.boomerang), flyer = [...L].sort((a, b) => b.pickups - a.pickups)[0];
   const cards = [
     { tone: "hot", oid: most.now || most.stints[most.stints.length - 1].oid, kicker: "Most traveled", head: `${pname(most.pid)}: ${fresh(J_HEAD, most.pid)}`, body: `${plural(most.teams, "franchise")} and counting${most.boomerang ? ", including a return trip" : ""}. Somebody get this man a moving company on retainer.`, stat: most.stints.map(s => teamName(s.oid)).join(" → ") },
@@ -2264,7 +2268,7 @@ function journeySection() {
   return section("journeymen", "The Journeymen", `${plural(L.length, "player")} who've suited up for more than one franchise`,
     `<div class="grid g2" style="margin-bottom:16px">${cards.map(storyCard).join("")}</div>
      <div class="tbl-wrap"><table class="jtable">${head}<tbody>${top.map(row).join("")}</tbody></table></div>
-     ${rest.length ? `<details class="jmore"><summary>Show all ${L.length} players</summary><div class="tbl-wrap" style="margin-top:10px"><table class="jtable">${head}<tbody>${rest.map((j, i) => row(j, i + 15)).join("")}</tbody></table></div></details>` : ""}
+     ${rest.length ? `<details class="jmore"${STATE.jOpen ? " open" : ""}><summary>Show all ${L.length} players</summary><div class="tbl-wrap" style="margin-top:10px"><table class="jtable">${head}<tbody>${rest.map((j, i) => row(j, i + 15)).join("")}</tbody></table></div></details>` : ""}
      <p class="note">Built from every completed week's rosters on Sleeper plus today's rosters, so a player picked up and dropped within the same week won't show that stop. "Trades" and "Pickups" count each time he changed hands by trade, or was added off waivers or free agency. A boomerang came back to a franchise he'd already left.</p>`);
 }
 
@@ -2828,6 +2832,7 @@ function route() {
   if (M) { render(); if (prev !== STATE.view + STATE.team + "/" + STATE.match + "/" + STATE.recap) window.scrollTo(0, 0); }
 }
 window.addEventListener("hashchange", route);
+$("#app").addEventListener("toggle", e => { if (e.target.classList?.contains("jmore")) STATE.jOpen = e.target.open; }, true);
 $("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) location.hash = t.dataset.v; });
 $(".brand").addEventListener("click", e => {
   if (!M) return;
@@ -2844,6 +2849,8 @@ $("#app").addEventListener("click", async e => {
   if (dr) { STATE.pastDraft = dr.dataset.draft; render(); return; }
   const j = e.target.closest("[data-jump]");
   if (j) { document.getElementById(j.dataset.jump)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); return; }
+  const jso = e.target.closest("[data-jsort]");
+  if (jso) { const k = jso.dataset.jsort; STATE.jSort = { k, d: STATE.jSort?.k === k ? -STATE.jSort.d : (k === "name" || k === "now" ? 1 : -1) }; const y = window.scrollY; render(); window.scrollTo(0, y); return; }
   const so = e.target.closest("[data-sort]");
   if (so) { const k = so.dataset.sort; STATE.sort = { k, d: STATE.sort.k === k ? -STATE.sort.d : -1 }; render(); }
 });
