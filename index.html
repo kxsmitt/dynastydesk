@@ -372,6 +372,7 @@ a.mu-teams:focus-visible,.mu-open:focus-visible,.sb-id:focus-visible{outline:2px
 .hopp .bye{font:600 10px/1 var(--mono);letter-spacing:.08em;color:var(--loss)}
 .hopp .livetxt{color:var(--live);font-weight:600}
 .hstat{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-story p.why{font:600 12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:-4px 0 12px}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -1253,7 +1254,18 @@ function viewStories() {
     const score = m => { const h = M.h2h[m.a.oid]?.[m.b.oid]?.games.length || 0; const close = 1 - Math.abs(0.5 - m.pA) * 2;
       const stake = odds ? (1 - Math.abs(0.5 - (odds.res[m.a.rid]?.playoff ?? .5)) * 2) + (1 - Math.abs(0.5 - (odds.res[m.b.rid]?.playoff ?? .5)) * 2) : 0; return close * 2 + stake + Math.min(h, 6) * 0.15; };
     const ranked = [...gd.matchups].sort((x, y) => score(y) - score(x)), mu = ranked[0];
-    const lead = `<div class="panel lead-story"><div><div class="eyebrow">Game of the week</div><h3>${esc(teamName(mu.a.oid))} vs. ${esc(teamName(mu.b.oid))}</h3><p>${esc(previewBlurb(mu, odds, s.year, gd.week))}</p></div>
+    // plain-English reason it was picked (no numbers that already appear beside it)
+    const fp = Math.max(mu.pA, 1 - mu.pA), parts = [];
+    const closeW = (1 - Math.abs(0.5 - mu.pA) * 2) * 2;
+    const bub = odds ? [mu.a, mu.b].filter(x => { const p = odds.res[x.rid]?.playoff; return p > 0.15 && p < 0.85; }) : [];
+    const meets = M.h2h[mu.a.oid]?.[mu.b.oid]?.games.length || 0;
+    const facts = [
+      { w: closeW, t: fp <= 0.58 ? "it's basically a coin flip" : fp <= 0.7 ? "it's close on paper" : null },
+      { w: bub.length * 0.9, t: bub.length === 2 ? "both teams are on the playoff bubble" : bub.length === 1 ? `${teamName(bub[0].oid)} is on the playoff bubble` : null },
+      { w: Math.min(meets, 6) * 0.15, t: meets >= 3 ? `these two have met ${meets} times before` : null }
+    ].filter(f => f.t).sort((x, y) => y.w - x.w).map(f => f.t);
+    const why = facts.length ? `Picked because ${facts.length > 1 ? facts.slice(0, -1).join(", ") + " and " + facts[facts.length - 1] : facts[0]}.` : "Picked as the most interesting game in an otherwise quiet week.";
+    const lead = `<div class="panel lead-story"><div><div class="eyebrow">Game of the week</div><h3>${esc(teamName(mu.a.oid))} vs. ${esc(teamName(mu.b.oid))}</h3><p class="why">${esc(why)}</p><p>${esc(previewBlurb(mu, odds, s.year, gd.week))}</p></div>
       <div class="stack">${[mu.a, mu.b].map(x => `<div class="side">${avatarHTML(x.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(x.oid))}</div><div class="mgr">${recStr(s.rec[x.rid] || { w: 0, l: 0 })}${odds ? ` · ${pct(odds.res[x.rid]?.playoff)} playoff odds` : ""}</div></div><div></div><div class="score">${pct(x === mu.a ? mu.pA : 1 - mu.pA)}</div></div>`).join("")}</div></div>`;
     const slate = `<ul class="slate">${ranked.slice(1).map(m => { const fav = m.pA >= 0.5 ? m.a : m.b; return `<li><div class="vs"><span class="chip" style="background:${color(m.a.oid)}"></span>${esc(teamName(m.a.oid))} <span class="muted">vs</span> <span class="chip" style="background:${color(m.b.oid)}"></span>${esc(teamName(m.b.oid))}</div><div class="odds mono">${esc(teamName(fav.oid).split(" ")[0])} ${pct(Math.max(m.pA, 1 - m.pA))}</div><div class="q">${esc(previewLead(m, gd.week))}</div></li>`; }).join("")}</ul>`;
     out.push(section("week", `Week ${gd.week}`, gd.anyLive ? "Live now" : "The slate, ranked by drama", lead + (ranked.length > 1 ? slate : "")));
