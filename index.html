@@ -373,6 +373,23 @@ a.mu-teams:focus-visible,.mu-open:focus-visible,.sb-id:focus-visible{outline:2px
 .hopp .livetxt{color:var(--live);font-weight:600}
 .hstat{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lead-story p.why{font:600 12px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:-4px 0 12px}
+/* ticker */
+.ticker{display:flex;align-items:stretch;height:34px;border-top:1px solid var(--line);margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));background:var(--surface)}
+.tk-label{flex:none;display:flex;align-items:center;gap:7px;padding:0 12px 0 max(16px,env(safe-area-inset-left,0px));background:var(--fg);color:var(--bg);font:700 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em}
+.tk-track{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 20px,#000 calc(100% - 20px),transparent);mask-image:linear-gradient(90deg,transparent,#000 20px,#000 calc(100% - 20px),transparent)}
+.tk-move{display:inline-flex;align-items:center;height:100%;white-space:nowrap;animation:tick var(--dur,40s) linear infinite;padding-left:16px}
+.tk-move:hover,.tk-move:focus-within{animation-play-state:paused}
+.tk-dup{display:inline-flex;align-items:center}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tk-item{display:inline-flex;align-items:center;gap:8px;color:var(--fg);text-decoration:none;font-size:13.5px}
+.tk-item:hover{color:var(--accent)}
+.tk-kind{font:700 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:4px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.tk-kind.k-swing,.tk-kind.k-upset-alert{background:var(--live);color:#fff}
+.tk-kind.k-lead-change,.tk-kind.k-boom{background:var(--accent);color:var(--bg)}
+.tk-kind.k-final{background:var(--fg);color:var(--bg)}
+.tk-when{font:500 11px/1 var(--mono);color:var(--muted)}
+.tk-sep{color:var(--muted);padding:0 18px}
+@media (prefers-reduced-motion:reduce){.tk-move{animation:none}.tk-track{overflow-x:auto;-webkit-mask-image:none;mask-image:none}.tk-dup{display:none}}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -415,6 +432,7 @@ body.locked .top, body.locked footer{display:none}
       <button class="tab" role="tab" data-v="history" type="button">History</button>
     </nav>
   </div>
+  <div class="ticker" id="ticker" hidden></div>
 </header>
 <div class="wrap">
   <main id="app"><div class="loader"><div class="big">Warming up</div><p class="muted" id="progress">Connecting to Sleeper…</p></div></main>
@@ -1608,6 +1626,98 @@ function viewMatch(s, gd, mid) {
       <div class="grid g2">${benchCol(a)}${benchCol(b)}</div></section>`;
 }
 
+/* ---------------- gameday ticker ----------------
+   Each refresh is compared with the last one this browser saw for the week, so swings, lead changes,
+   big plays and finals become headlines. Events are kept per week in this browser only. */
+const TICK = { key: null, snap: null, events: [], base: {} };
+function tickLoad(key) {
+  if (TICK.key === key) return;
+  TICK.key = key; TICK.snap = null; TICK.events = []; TICK.base = {};
+  try { const v = JSON.parse(localStorage.getItem(key) || "null"); if (v) Object.assign(TICK, { snap: v.snap, events: v.events || [], base: v.base || {} }); } catch {}
+}
+function tickSave() { try { localStorage.setItem(TICK.key, JSON.stringify({ snap: TICK.snap, events: TICK.events.slice(0, 30), base: TICK.base })); } catch {} }
+const tPick = (arr, seed) => arr[hash(seed) % arr.length];
+
+function updateTicker(gd) {
+  const s = M.cur;
+  if (!gd || gd.isPast || gd.week !== s.currentWeek) return;
+  tickLoad(`ticker-${s.league.league_id}-${s.year}-${gd.week}`);
+  const now = Date.now(), snap = { t: now, m: {} };
+  for (const mu of gd.matchups) {
+    const all = [...mu.a.players, ...mu.b.players];
+    snap.m[mu.a.mid] = { a: mu.a.rid, b: mu.b.rid, pA: mu.pA, ap: mu.a.pts, bp: mu.b.pts, done: all.every(p => p.status === "done"), pl: Object.fromEntries(all.filter(p => p.pid && p.pid !== "0").map(p => [p.pid, p.actual])) };
+    if (!(mu.a.mid in TICK.base) && !all.some(p => p.actual)) TICK.base[mu.a.mid] = mu.pA;   // pre-kickoff odds, for upset alerts
+  }
+  const prev = TICK.snap, add = (kind, text, mid) => TICK.events.unshift({ t: now, kind, text, mid });
+  if (prev) for (const [mid, cur] of Object.entries(snap.m)) {
+    const old = prev.m[mid]; if (!old || old.a !== cur.a) continue;
+    const A = teamName(s.ownerOf[cur.a]), B = teamName(s.ownerOf[cur.b]);
+    const ridOf = pid => (gd.sides[cur.a].players.some(p => p.pid === pid) ? cur.a : cur.b);
+    const gains = Object.entries(cur.pl).map(([pid, v]) => ({ pid, d: v - (old.pl[pid] ?? 0) })).filter(x => x.d > 0.05).sort((x, y) => y.d - x.d);
+    const hero = gains[0];
+    const heroTxt = hero ? ` behind ${pname(hero.pid)} (+${fmt(hero.d)})` : "";
+    const seed = mid + now;
+    if (cur.done && !old.done) {
+      const [w, l, wp, lp] = cur.ap >= cur.bp ? [A, B, cur.ap, cur.bp] : [B, A, cur.bp, cur.ap];
+      add("Final", tPick([`${w} beats ${l}, ${fmt(wp)}-${fmt(lp)}.`, `It's over: ${w} ${fmt(wp)}, ${l} ${fmt(lp)}.`, `${w} closes it out against ${l}, ${fmt(wp)}-${fmt(lp)}.`], seed), +mid);
+      continue;
+    }
+    const lead = x => x.ap > x.bp ? "a" : x.bp > x.ap ? "b" : null;
+    if (lead(old) && lead(cur) && lead(old) !== lead(cur)) {
+      const [L, T, lp, tp] = lead(cur) === "a" ? [A, B, cur.ap, cur.bp] : [B, A, cur.bp, cur.ap];
+      add("Lead change", tPick([`${L} jumps ahead of ${T}, ${fmt(lp)}-${fmt(tp)}${heroTxt}.`, `${L} takes the lead over ${T}${heroTxt}.`, `New leader: ${L} over ${T}, ${fmt(lp)}-${fmt(tp)}.`], seed), +mid);
+    }
+    const dA = cur.pA - old.pA;
+    if (Math.abs(dA) >= 0.15) {
+      const [W, pOld, pNew] = dA > 0 ? [A, old.pA, cur.pA] : [B, 1 - old.pA, 1 - cur.pA];
+      add("Swing", tPick([`${W}'s win odds go from ${pct(pOld)} to ${pct(pNew)}${heroTxt}.`, `Momentum shift: ${W} now ${pct(pNew)} to win, up from ${pct(pOld)}${heroTxt}.`, `${W} surges to ${pct(pNew)}${heroTxt}.`], seed), +mid);
+    }
+    const base = TICK.base[mid];
+    if (base != null) for (const [side, T, O] of [["a", A, B], ["b", B, A]]) {
+      const b0 = side === "a" ? base : 1 - base, c0 = side === "a" ? cur.pA : 1 - cur.pA, o0 = side === "a" ? old.pA : 1 - old.pA;
+      if (b0 < 0.3 && c0 >= 0.6 && o0 < 0.6) add("Upset alert", tPick([`${T} started at ${pct(b0)} and now leads ${O}. Somebody check on ${O}.`, `${T} was a ${pct(b0)} underdog. Now ${pct(c0)} to beat ${O}.`], seed + side), +mid);
+    }
+    for (const g of gains.filter(x => x.d >= 8).slice(0, 2)) {
+      const team = teamName(s.ownerOf[ridOf(g.pid)]);
+      add("Boom", tPick([`${pname(g.pid)} just put up ${fmt(g.d)} for ${team}.`, `${pname(g.pid)} +${fmt(g.d)} for ${team}. That's a whole fantasy week in one drive.`, `${pname(g.pid)} goes off: +${fmt(g.d)} for ${team}.`], seed + g.pid), +mid);
+    }
+  }
+  TICK.snap = snap; tickSave();
+}
+
+function tickerItems() {
+  const s = M.cur, gd = STATE.curGd;
+  if (!gd || gd.isPast || gd.week !== s.currentWeek) return [];
+  tickLoad(`ticker-${s.league.league_id}-${s.year}-${gd.week}`);
+  const started = gd.matchups.some(mu => [...mu.a.players, ...mu.b.players].some(p => p.actual));
+  const items = TICK.events.slice(0, 12).map(e => ({ kind: e.kind, text: e.text, mid: e.mid, when: new Date(e.t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }));
+  if (started) {
+    const all = gd.matchups.flatMap(mu => [mu.a, mu.b]);
+    const hi = all.reduce((x, y) => y.pts > x.pts ? y : x);
+    items.push({ kind: "High score", text: `${teamName(hi.oid)} leads the week with ${fmt(hi.pts)}.`, mid: hi.mid });
+    const star = gd.matchups.flatMap(mu => [...mu.a.players.map(p => ({ p, side: mu.a })), ...mu.b.players.map(p => ({ p, side: mu.b }))]).sort((x, y) => y.p.actual - x.p.actual)[0];
+    if (star && star.p.actual > 0) items.push({ kind: "Top player", text: `${pname(star.p.pid)} has ${fmt(star.p.actual)} for ${teamName(star.side.oid)}.`, mid: star.side.mid });
+    const close = [...gd.matchups].sort((x, y) => Math.abs(0.5 - x.pA) - Math.abs(0.5 - y.pA))[0];
+    if (close && Math.max(close.pA, 1 - close.pA) <= 0.7) items.push({ kind: "Nail-biter", text: `${teamName(close.a.oid)} ${fmt(close.a.pts)}, ${teamName(close.b.oid)} ${fmt(close.b.pts)}. Win odds ${pct(Math.max(close.pA, 1 - close.pA))} for ${teamName((close.pA >= 0.5 ? close.a : close.b).oid)}.`, mid: close.a.mid });
+    for (const mu of [...gd.matchups].sort((x, y) => Math.abs(0.5 - y.pA) - Math.abs(0.5 - x.pA)).slice(0, 2)) {
+      const fav = mu.pA >= 0.5 ? mu.a : mu.b, dog = fav === mu.a ? mu.b : mu.a;
+      if (Math.max(mu.pA, 1 - mu.pA) >= 0.9 && fav.pts - dog.pts >= 10) items.push({ kind: "Cruising", text: `${teamName(fav.oid)} up ${fmt(fav.pts - dog.pts)} on ${teamName(dog.oid)}.`, mid: mu.a.mid });
+    }
+  }
+  return items;
+}
+
+function renderTicker() {
+  const el = $("#ticker"); if (!el || !M) return;
+  const items = tickerItems();
+  if (!items.length) { el.hidden = true; el.innerHTML = ""; return; }
+  const html = items.map(i => `<a class="tk-item" href="#match-${STATE.curGd.week}-${i.mid}"><b class="tk-kind k-${i.kind.toLowerCase().replace(/[^a-z]+/g, "-")}">${esc(i.kind)}</b>${i.when ? `<span class="tk-when">${esc(i.when)}</span>` : ""}${esc(i.text)}</a>`).join('<span class="tk-sep" aria-hidden="true">•</span>');
+  if (el.dataset.sig === html) return;   // unchanged: don't restart the scroll
+  el.dataset.sig = html; el.hidden = false;
+  const len = items.reduce((a, i) => a + i.text.length + 20, 0);
+  el.innerHTML = `<span class="tk-label"><span class="dot live"></span>Live wire</span><div class="tk-track"><div class="tk-move" style="--dur:${Math.max(25, Math.round(len * 0.22))}s">${html}<span class="tk-sep" aria-hidden="true">•</span><span class="tk-dup" aria-hidden="true" inert>${html}<span class="tk-sep">•</span></span></div></div>`;
+}
+
 /* ---------------- draft pick ledger (shared) ---------------- */
 function picksLedger(s) {
   const first = ["pre_draft", "drafting"].includes(s.league.status) ? +s.year : +s.year + 1;
@@ -2062,6 +2172,7 @@ function render() {
   renderFooter();
 }
 function renderFooter() {
+  renderTicker();
   const lbl = { sleeper: "Sleeper league", projections: "Weekly projections", schedule: "NFL game status", clock: "Game times", values: "Dynasty values" };
   $("#sources").innerHTML = Object.entries(lbl).filter(([k]) => k in SOURCES).map(([k, v]) => `<span class="${SOURCES[k] ? "" : "off"}" title="${SOURCES[k] ? "Loaded" : "Unavailable right now"}">${v}</span>`).join("");
   $("#updated").textContent = STATE.updated ? `Updated ${STATE.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
@@ -2074,7 +2185,7 @@ async function refreshGameday(fresh) {
   const s = M.cur;
   STATE.gd = await gamedayModel(s, STATE.week, { fresh });
   const curGd = STATE.week === s.currentWeek ? STATE.gd : STATE.curGd;
-  if (STATE.week === s.currentWeek) STATE.curGd = STATE.gd;
+  if (STATE.week === s.currentWeek) { STATE.curGd = STATE.gd; updateTicker(STATE.gd); }
   STATE.odds = s.lastDone !== 99 && s.lastDone + 1 < s.pws ? playoffOdds(s, curGd) : null;
   STATE.draftProj = null;
   STATE.updated = new Date();
