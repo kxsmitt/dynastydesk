@@ -367,6 +367,11 @@ a.mu-teams:focus-visible,.mu-open:focus-visible,.sb-id:focus-visible{outline:2px
   .sb-team.sbr .sb-id{flex-direction:column;align-items:flex-end}
   .sb-mid .vs{font-size:14px;padding:6px 8px}
 }
+.hopp{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hopp b{color:var(--fg);font-weight:600}
+.hopp .bye{font:600 10px/1 var(--mono);letter-spacing:.08em;color:var(--loss)}
+.hopp .livetxt{color:var(--live);font-weight:600}
+.hstat{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -646,6 +651,8 @@ function buildModel({ nfl, raws, players }) {
       const a = pAcc[pid] ||= [0, 0]; a[0] += p; a[1]++;
     }
     for (const [pid, [s, n]] of Object.entries(pAcc)) pAvg[pid] = s / n;
+    const pLog = {};   // pid -> weekly points, in week order (completed weeks only)
+    for (const wk of Object.keys(rs.weeks).map(Number).sort((a, b) => a - b)) if (wk <= lastDone) for (const e of rs.weeks[wk] || []) for (const [pid, p] of Object.entries(e.players_points || {})) (pLog[pid] ||= []).push({ week: wk, pts: p });
 
     const findP = p => rs.wb.find(m => m.p === p);
     const champM = findP(1), thirdM = findP(3);
@@ -654,7 +661,7 @@ function buildModel({ nfl, raws, players }) {
     const playoffRids = new Set(rs.wb.flatMap(m => [m.t1, m.t2]).filter(x => typeof x === "number"));
 
     return {
-      raw: rs, league: lg, year, set, pws, ownerOf, userById, games, standings, rec, lastDone, currentWeek, pAvg, complete,
+      raw: rs, league: lg, year, set, pws, ownerOf, userById, games, standings, rec, lastDone, currentWeek, pAvg, pLog, complete,
       scoring: lg.scoring_settings || {}, slots: (lg.roster_positions || []).filter(p => !["BN", "IR", "TAXI"].includes(p)),
       champ: complete ? ownerOf[champM.w] : null, runner: complete ? ownerOf[champM.l] : null, third: complete && thirdM?.w ? ownerOf[thirdM.w] : null,
       titleGame, playoffOids: new Set([...playoffRids].map(r => ownerOf[r])), medianGame
@@ -738,7 +745,13 @@ async function loadSchedule(season, live) {
     const st = String(g.status || "").toLowerCase();
     const status = /complete|final|post/.test(st) ? "done" : /progress|live|half/.test(st) ? "live" : "pre";
     const w = byWeek[g.week] ||= {};
-    for (const t of [g.home, g.away]) if (t) w[t] = status;
+    const raw = g.start_time ?? g.kickoff ?? g.game_time ?? g.date;
+    let t = null, dateOnly = false;
+    if (typeof raw === "number") t = new Date(raw < 1e12 ? raw * 1000 : raw);
+    else if (typeof raw === "string") { dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw); t = new Date(dateOnly ? raw + "T12:00:00" : raw); }
+    if (t && isNaN(t)) t = null;
+    if (g.home) w[g.home] = { status, opp: g.away, home: true, t, dateOnly };
+    if (g.away) w[g.away] = { status, opp: g.home, home: false, t, dateOnly };
   }
   return Object.keys(byWeek).length ? byWeek : null;
 }
@@ -750,7 +763,7 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
   const isPast = week <= season.lastDone;
   const [proj, sched] = await Promise.all([
     isPast ? Promise.resolve({}) : loadProjections(season, week),
-    isPast ? Promise.resolve(null) : loadSchedule(season, fresh)
+    loadSchedule(season, fresh && !isPast)
   ]);
   const teamStatus = sched?.[week] || null;
   let anyLive = false;
@@ -761,13 +774,14 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
       const actual = +(e.players_points?.[pid] ?? (i != null ? e.starters_points?.[i] : 0) ?? 0) || 0;
       const p = (proj[pid] ?? season.pAvg[pid] ?? 0);
       let status;
+      const nfl = pteam(pid), game = teamStatus && nfl ? (teamStatus[nfl] || "bye") : null;   // no game listed = bye week
       if (isPast) status = "done";
-      else if (teamStatus) { const t = pteam(pid); status = t && teamStatus[t] ? teamStatus[t] : "done"; }  // no game listed = bye week or empty slot
+      else if (teamStatus) status = game && game !== "bye" ? game.status : "done";
       else status = actual !== 0 ? "live" : "pre";
       if (status === "live" && slot !== "BN") anyLive = true;
       const remain = status === "pre" ? p : status === "live" ? Math.max(0, p - actual) * 0.6 : 0;
       const sdv = status === "pre" ? 0.55 * p + 2 : status === "live" ? 0.4 * remain + 1 : 0;
-      return { pid, slot, actual, proj: p, status, remain, v: sdv * sdv };
+      return { pid, slot, actual, proj: p, status, remain, v: sdv * sdv, game };
     };
     const players = starters.map((pid, i) => mapP(pid, i, season.slots[i] || ""));
     const bench = (e.players || []).filter(pid => !starters.includes(pid)).map(pid => mapP(pid, null, "BN"));
@@ -781,7 +795,7 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
     const pA = v > 0.01 ? Phi((a.final - b.final) / Math.sqrt(v)) : (a.pts > b.pts ? 1 : a.pts < b.pts ? 0 : 0.5);
     return { a, b, pA };
   });
-  return { week, matchups, sides, anyLive, isPast, hasProj: Object.keys(proj).length > 0, hasSched: !!teamStatus };
+  return { week, matchups, sides, anyLive, isPast, hasProj: Object.keys(proj).length > 0, hasSched: !!teamStatus && !isPast };
 }
 
 /* ---------------- playoff odds (Monte Carlo) ---------------- */
@@ -1422,6 +1436,26 @@ const headshot = pid => {
   const src = def ? `https://sleepercdn.com/images/team_logos/nfl/${pid.toLowerCase()}.png` : `https://sleepercdn.com/content/nfl/players/thumb/${pid}.jpg`;
   return `<span class="hs${def ? " logo" : ""}"><img src="${src}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></span>`;
 };
+function kickoffText(g) {
+  if (!g?.t) return "";
+  const o = { timeZone: "America/New_York", weekday: "short" };
+  return g.dateOnly ? g.t.toLocaleDateString("en-US", o) : g.t.toLocaleString("en-US", { ...o, hour: "numeric", minute: "2-digit" }).replace(":00", "");
+}
+function oppLine(p, isPast) {
+  const g = p.game;
+  if (g === "bye") return `<span class="bye">BYE WEEK</span>`;
+  if (!g) return isPast ? "" : `<span class="muted">${statusWord(p.status)}</span>`;
+  const opp = `<b>${g.home ? "vs" : "@"} ${esc(g.opp)}</b>`;
+  const when = isPast || p.status === "done" ? "Final" : p.status === "live" ? '<span class="livetxt">Live</span>' : (kickoffText(g) || "Upcoming");
+  return `${opp} · ${when}`;
+}
+function playerForm(pid) {
+  const s = M.cur, avg = s.pAvg[pid], log = (s.pLog[pid] || []).filter(x => x.week < (STATE.gd?.week || 99));
+  if (!avg && !log.length) return "";
+  const l3 = log.slice(-3).map(x => x.pts);
+  const trend = l3.length === 3 && avg ? (mean(l3) > avg * 1.2 ? " ▲" : mean(l3) < avg * 0.8 ? " ▼" : "") : "";
+  return `Avg ${fmt(avg)}${l3.length ? ` · L3 ${fmt(mean(l3))}${trend}` : ""}`;
+}
 const statusWord = st => st === "pre" ? "Yet to play" : st === "live" ? "Playing" : "Final";
 
 function h2hCell(p, side, isPast, win) {
@@ -1430,7 +1464,9 @@ function h2hCell(p, side, isPast, win) {
   const pl = M.players[p.pid] || {};
   return `<div class="hc h${side} ${win ? "won" : ""}" style="--pos:${posColor(p.pid)}">${headshot(p.pid)}
     <div class="hn"><div class="hpn">${esc(pname(p.pid))}${pl.inj ? ` <span class="inj">${esc(pl.inj)}</span>` : ""}</div>
-    <div class="hpm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}${isPast ? "" : ` · ${statusWord(p.status)}`}</div></div>
+    <div class="hpm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}</div>
+    <div class="hopp">${oppLine(p, isPast)}</div>
+    <div class="hstat mono">${playerForm(p.pid)}</div></div>
     <div class="hpts"><div class="mono">${fmt(p.actual, 2)}</div>${!isPast && p.status !== "done" ? `<div class="hproj mono">proj ${fmt(p.proj, 1)}</div>` : ""}</div></div>`;
 }
 
@@ -1463,7 +1499,7 @@ function viewMatch(s, gd, mid) {
   const benchCol = x => {
     const list = [...x.bench].sort((p, q) => q.actual - p.actual || (POS_ORDER[ppos(p.pid)] || 9) - (POS_ORDER[ppos(q.pid)] || 9));
     const tot = sum(list.map(p => p.actual));
-    return `<div class="hbench"><div class="bh" style="--pos:${color(x.oid)}"><span>${esc(teamName(x.oid))} bench</span><span class="mono muted">${fmt(tot)} pts</span></div><ul>${list.map(p => `<li><div style="min-width:0"><div class="bn">${esc(pname(p.pid))}</div><div class="bm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}</div></div><div class="bp mono">${fmt(p.actual, 2)}</div></li>`).join("") || `<li class="muted">Nobody on the bench.</li>`}</ul></div>`;
+    return `<div class="hbench"><div class="bh" style="--pos:${color(x.oid)}"><span>${esc(teamName(x.oid))} bench</span><span class="mono muted">${fmt(tot)} pts</span></div><ul>${list.map(p => `<li><div style="min-width:0"><div class="bn">${esc(pname(p.pid))}</div><div class="bm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}</div><div class="hopp">${oppLine(p, isPast)}</div></div><div class="bp mono">${fmt(p.actual, 2)}</div></li>`).join("") || `<li class="muted">Nobody on the bench.</li>`}</ul></div>`;
   };
   const quips = [benchQuip(a), benchQuip(b)].filter(Boolean);
   const blurb = isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week);
