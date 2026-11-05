@@ -1489,15 +1489,28 @@ const STAKES = [
   (T, w, now) => `${T} sits at ${now} to make the playoffs; a W bumps that to ${w}.`,
   (T, w, now) => `Win this and ${T} is at ${w} to make the playoffs. Right now: ${now}.`,
   (T, w, now) => `Stakes for ${T}: ${now} playoff odds today, ${w} with a win.`,
-  (T, w, now) => `For ${T}, this one is worth a jump from ${now} to ${w} in playoff odds.`
+  (T, w, now) => `For ${T}, this one is worth a jump from ${now} to ${w} in playoff odds.`,
+  (T, w, now) => `${T}'s playoff odds: ${now} now, ${w} if they handle business.`,
+  (T, w, now) => `A W moves ${T} from ${now} to ${w} to make the playoffs. No pressure.`,
+  (T, w, now) => `Big swing for ${T}: ${w} playoff odds with a win, ${now} as it stands.`,
+  (T, w, now) => `${T} goes from ${now} to ${w} playoff odds with a win. Set the lineup accordingly.`
 ];
 const STAKES_LOCK = [
   (T, w, now) => `${T} is already at ${now} to make the playoffs. A win just makes it official-ish (${w}).`,
-  (T, w, now) => `A win takes ${T} to ${w} playoff odds. Start ordering the hats.`
+  (T, w, now) => `A win takes ${T} to ${w} playoff odds. Start ordering the hats.`,
+  (T, w, now) => `With a W, ${T} goes to ${w} playoff odds. Pretty much printing tickets.`,
+  (T, w, now) => `${T} is ${now} to make the playoffs, ${w} with a win. Basically a formality.`,
+  (T, w, now) => `A win puts ${T} at ${w} to make the playoffs. The bracket is already penciled in.`,
+  (T, w, now) => `${T}: ${now} now, ${w} with a win. Somebody tell them the playoffs start in week 15.`,
+  (T, w, now) => `Win and ${T} is at ${w} playoff odds. Lose and they're still probably fine. Probably.`,
+  (T, w, now) => `${T} gets to ${w} with a win. The playoff invite is in the mail.`
 ];
 const STAKES_LONG = [
   (T, w, now) => `Even with a win, ${T} only gets to ${w} playoff odds. Miracles accepted.`,
-  (T, w, now) => `A win nudges ${T} to ${w} playoff odds. Long shot, but the dream lives.`
+  (T, w, now) => `A win nudges ${T} to ${w} playoff odds. Long shot, but the dream lives.`,
+  (T, w, now) => `${T} at ${now}; a win gets them to ${w}. Please clap.`,
+  (T, w, now) => `A W lifts ${T} to ${w} playoff odds. Lottery tickets have better numbers.`,
+  (T, w, now) => `${T} would reach ${w} with a win. The 1.01 is looking more realistic.`
 ];
 function stakesLine(mu, s, gd) {
   const o = STATE.odds;
