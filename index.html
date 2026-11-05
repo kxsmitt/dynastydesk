@@ -1006,16 +1006,16 @@ function previewLead(mu, wk) {
   return fresh(pool, a.oid + b.oid + wk, F, D, pct(fp));
 }
 const FIRST_MEET = ["First-ever meeting. No history, no grudges. Yet.", "These two have never met. Today a grudge is born.", "Brand-new matchup. Clean slate, dirty intentions."];
-function previewBlurb(mu, odds, yr, wk) {
+function previewBlurb(mu, odds, yr, wk, covered = new Set()) {
   const { a, b } = mu;
   const lead = previewLead(mu, wk);
   const h = h2hAsOf(a.oid, b.oid, yr, wk, false);
   const hist = h.n ? [seriesText(a.oid, b.oid, h), lastMeetingText(h), streakQuip(h)].filter(Boolean).join(" ") : fresh(FIRST_MEET, a.oid + b.oid);
   let stakes = "";
   if (odds) {
-    const bub = [a, b].filter(s => { const p = odds.res[s.rid]?.playoff; return p > 0.15 && p < 0.85; });
-    if (bub.length === 2) stakes = " " + fresh(["Both teams are on the playoff bubble, so this is basically a play-in game.", "Playoff odds on both sides are wobbling. Loser starts mock-drafting.", "Two bubble teams, one survivor."], a.oid + b.oid + "bub");
-    else if (bub.length === 1) stakes = " " + fresh([(T, p) => `Big one for ${T}, sitting at ${p} playoff odds.`, (T, p) => `${T}'s season might hinge on this: ${p} to make the playoffs.`, (T, p) => `${T} (${p} playoff odds) can't afford a dud.`], bub[0].oid + "bub1", teamName(bub[0].oid), pct(odds.res[bub[0].rid].playoff));
+    const bub = [a, b].filter(s => { const p = odds.res[s.rid]?.playoff; return p > 0.15 && p < 0.85 && !covered.has(s.rid); });
+    if (bub.length === 2) stakes = " " + fresh(["Both teams are on the playoff bubble, so this is basically a play-in game.", "Playoff hopes on both sides are wobbling. Loser starts mock-drafting.", "Two bubble teams, one survivor."], a.oid + b.oid + "bub");
+    else if (bub.length === 1) stakes = " " + fresh([T => `Big one for ${T}, who's sitting on the playoff bubble.`, T => `${T}'s season might hinge on this one.`, T => `${T} is on the bubble and can't afford a dud.`, T => `Bubble alert for ${T}. Every point matters.`], bub[0].oid + "bub1", teamName(bub[0].oid));
   }
   return `${lead} ${hist}${stakes}`;
 }
@@ -1207,7 +1207,7 @@ function matchupCard(mu, s, gd) {
     <a class="mu-teams" href="#match-${gd.week}-${mu.a.mid}" aria-label="Open head-to-head view">${sideRow(mu.a, mu.b)}${sideRow(mu.b, mu.a)}</a>
     <div class="wp" role="img" aria-label="Win probability ${pct(mu.pA)} to ${pct(1 - mu.pA)}"><span style="width:${mu.pA * 100}%;background:${ca}"></span><span style="width:${(1 - mu.pA) * 100}%;background:${cb}"></span></div>
     <div class="wp-l"><span>${gd.isPast ? (mu.a.pts > mu.b.pts ? "WIN" : mu.a.pts < mu.b.pts ? "LOSS" : "TIE") : pct(mu.pA)}</span><span>${gd.isPast ? "" : "win odds"}</span><span>${gd.isPast ? (mu.b.pts > mu.a.pts ? "WIN" : mu.b.pts < mu.a.pts ? "LOSS" : "TIE") : pct(1 - mu.pA)}</span></div>
-    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week) + stakesLine(mu, s, gd))}</div>
+    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week, stakesTeams(mu, s, gd)) + stakesLine(mu, s, gd))}</div>
     <a class="mu-open" href="#match-${gd.week}-${mu.a.mid}">Head-to-head view <span aria-hidden="true">→</span></a>
   </article>`;
 }
@@ -1512,10 +1512,15 @@ const STAKES_LONG = [
   (T, w, now) => `A W lifts ${T} to ${w} playoff odds. Lottery tickets have better numbers.`,
   (T, w, now) => `${T} would reach ${w} with a win. The 1.01 is looking more realistic.`
 ];
-function stakesLine(mu, s, gd) {
+function stakesTeams(mu, s, gd) {
   const o = STATE.odds;
-  if (!o || gd.isPast || gd.week !== o.week) return "";
-  return [mu.a, mu.b].filter(x => (s.rec[x.rid]?.rank ?? 99) <= 9).map(x => {
+  if (!o || gd.isPast || gd.week !== o.week) return new Set();
+  return new Set([mu.a, mu.b].filter(x => (s.rec[x.rid]?.rank ?? 99) <= 9 && o.res[x.rid]?.ifWin != null).map(x => x.rid));
+}
+function stakesLine(mu, s, gd) {
+  const o = STATE.odds, cov = stakesTeams(mu, s, gd);
+  if (!cov.size) return "";
+  return [mu.a, mu.b].filter(x => cov.has(x.rid)).map(x => {
     const r = o.res[x.rid]; if (r?.ifWin == null) return "";
     const pool = r.ifWin >= 0.97 ? STAKES_LOCK : r.ifWin < 0.05 ? STAKES_LONG : STAKES;
     return " " + fresh(pool, x.oid + gd.week + "stakes", teamName(x.oid), pct(r.ifWin), pct(r.playoff));
@@ -1543,7 +1548,7 @@ function viewMatch(s, gd, mid) {
     return `<div class="hbench"><div class="bh" style="--pos:${color(x.oid)}"><span>${esc(teamName(x.oid))} bench</span><span class="mono muted">${fmt(tot)} pts</span></div><ul>${list.map(p => `<li><div style="min-width:0"><div class="bn">${esc(pname(p.pid))}</div><div class="bm"><span class="st ${p.status}"></span>${esc(ppos(p.pid))}${pteam(p.pid) ? " · " + esc(pteam(p.pid)) : ""}</div><div class="hopp">${oppLine(p, isPast)}</div></div><div class="bp mono">${fmt(p.actual, 2)}</div></li>`).join("") || `<li class="muted">Nobody on the bench.</li>`}</ul></div>`;
   };
   const quips = [benchQuip(a), benchQuip(b)].filter(Boolean);
-  const blurb = (isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week)) + stakesLine(mu, s, gd);
+  const blurb = (isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week, stakesTeams(mu, s, gd))) + stakesLine(mu, s, gd);
   return `<div class="team-top"><a class="back" href="#gameday">← All week ${gd.week} matchups</a><div class="eyebrow">${s.year} · Week ${gd.week} · ${label}${gd.anyLive ? ` · updates every ${CONFIG.POLL_SECONDS}s` : ""}</div></div>
     <section class="scoreboard">
       <div class="sb-row">${team(a, b, "l")}<div class="sb-mid"><div class="vs">VS</div></div>${team(b, a, "r")}</div>
