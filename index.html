@@ -1770,12 +1770,13 @@ function viewDraft() {
   out.push(section("capital", "Who's Holding Picks", `${draftYear} draft, all rounds`, capHTML + `<p class="note">${richest.firsts >= 2 ? `${esc(tName(richest.rid))} has ${richest.firsts} first-rounders and a lot of explaining to do. ` : ""}${broke.length ? `${broke.map(c => esc(tName(c.rid))).join(", ")} ${broke.length === 1 ? "has" : "have"} no first. Bold.` : "Everyone still has a first. How wholesome."}</p>`));
 
   // ---- past drafts
-  const past = M.seasons.flatMap(x => x.raw.drafts.filter(d => d.status === "complete").map(d => ({ d, season: x, picks: x.raw.draftPicks[d.draft_id] || [] }))).filter(x => x.picks.length)
+  // The startup draft happened on Yahoo; the Sleeper copy was a random import, so only rookie drafts are shown.
+  const past = M.seasons.flatMap(x => x.raw.drafts.filter(d => d.status === "complete" && (d.settings?.rounds || 99) <= 6).map(d => ({ d, season: x, picks: x.raw.draftPicks[d.draft_id] || [] }))).filter(x => x.picks.length)
     .sort((a, b) => (+b.d.season - +a.d.season) || (b.d.start_time || 0) - (a.d.start_time || 0));
   if (past.length) {
     const sel = past.find(x => x.d.draft_id === STATE.pastDraft) || past[0];
     const kind = x => (x.d.settings?.rounds || 0) > 6 ? "Startup" : "Rookie";
-    const tabs = past.map(x => `<button class="btn" type="button" data-draft="${esc(x.d.draft_id)}" aria-pressed="${x === sel}">${esc(x.d.season)} ${kind(x)}</button>`).join("");
+    const tabs = past.map(x => `<button class="btn" type="button" data-draft="${esc(x.d.draft_id)}" aria-pressed="${x === sel}">${esc(x.d.season)} Rookie</button>`).join("");
     const T = sel.d.settings?.teams || sel.season.raw.rosters.length;
     const rds = Math.max(...sel.picks.map(p => p.round));
     const nm = p => p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id);
@@ -1802,7 +1803,7 @@ function viewDraft() {
       if (bust && bust.ppg < (best?.ppg || 0) * 0.5) v.push({ k: "Bust watch", h: nm(bust.p), d: `A ${pickLabel(bust.p.round, slotOf(bust.p))} pick ${bust.ppg ? `averaging ${fmt(bust.ppg)} ppg` : "with zero fantasy points this season"}. ${teamName(who(bust.p))} is "trusting the process."` });
       if (v.length) verdict = `<div class="grid g3">${v.map(x => `<article class="story" style="--team:var(--accent)"><div class="eyebrow">${x.k}</div><h4>${esc(x.h)}</h4><p>${esc(x.d)}</p></article>`).join("")}</div>`;
     }
-    out.push(section("past", "Draft Archive", "Every completed draft in league history", `<div class="jump">${tabs}</div>${verdict}${board}<p class="note">Points per game are from the current season, while the player was on a fantasy roster.</p>`));
+    out.push(section("past", "Draft Archive", "Every rookie draft since the move to Sleeper. The startup draft was held on Yahoo.", `<div class="jump">${tabs}</div>${verdict}${board}<p class="note">Points per game are from the current season, while the player was on a fantasy roster.</p>`));
   }
 
   const jumps = [["order", "Draft order"], ["race101", "1.01 race"], ["capital", "Pick holdings"], ["past", "Archive"]]
