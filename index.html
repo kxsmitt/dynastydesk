@@ -208,6 +208,37 @@ h4.mini{font:800 18px/1 var(--display);text-transform:uppercase;margin:0 0 10px;
   .fq{grid-column:2/-1}
 }
 
+
+/* franchises */
+.picker{display:flex;flex-direction:column;gap:6px;min-width:min(100%,260px)}
+.sel{appearance:none;padding:10px 36px 10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center;font:600 15px var(--body);cursor:pointer;max-width:100%}
+.sel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px}
+.ftile{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--team);border-radius:var(--radius);text-decoration:none;color:inherit}
+.ftile .av{width:44px;height:44px}
+.ftile .tname{white-space:normal;font-size:19px}
+.ftile:hover{border-color:var(--team)}
+.ftile:hover .arrow{transform:translateX(3px);color:var(--accent)}
+.ftile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.arrow{font:700 20px var(--body);color:var(--muted);transition:transform .15s}
+.team-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;flex-wrap:wrap;margin-bottom:20px}
+.back{font:600 14px var(--body);text-decoration:none}
+.team-hero{display:flex;gap:18px;align-items:center;padding-bottom:16px;border-bottom:4px solid var(--team)}
+.av.big{width:76px;height:76px;border-radius:14px;font-size:34px;flex:none}
+.team-hero h2{font-size:clamp(34px,6vw,56px);line-height:.95;text-wrap:balance}
+.tquip{margin:6px 0 0;font:italic 400 17px/1.4 var(--story);color:var(--muted)}
+.tstats{display:flex;flex-wrap:wrap;gap:10px 36px;margin-top:16px}
+.tstat .v{font:600 24px/1.2 var(--mono);font-variant-numeric:tabular-nums}
+.tstat small{font-size:13px;color:var(--muted)}
+h3 .count{font:600 13px var(--mono);color:var(--muted);vertical-align:middle;margin-left:4px}
+table.roster td.slot{font:600 11px var(--mono);color:var(--accent);width:56px}
+table.roster .pname{font-weight:600}
+.pickgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:16px}
+.pickcol{display:flex;flex-direction:column;gap:6px}
+.pick-yr{font:800 22px/1 var(--display);margin-bottom:2px}
+.pick{display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px}
+.pick span{color:var(--muted);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick.r1{border-color:var(--accent);background:var(--accent-soft)}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -246,6 +277,7 @@ body.locked .top, body.locked footer{display:none}
       <button class="tab" role="tab" data-v="outlook" type="button">Outlook</button>
       <button class="tab" role="tab" data-v="history" type="button">History</button>
       <button class="tab" role="tab" data-v="dynasty" type="button">Dynasty</button>
+      <button class="tab" role="tab" data-v="franchises" type="button">Franchises</button>
     </nav>
   </div>
 </header>
@@ -1069,17 +1101,7 @@ function recordBook() {
 
 function viewDynasty() {
   const s = M.cur, vals = STATE.values;
-  const firstDraftYear = ["pre_draft", "drafting"].includes(s.league.status) ? +s.year : +s.year + 1;
-  const nextSeasons = [0, 1, 2].map(i => String(firstDraftYear + i));
-  const rookieRounds = (s.raw.drafts.find(d => (d.settings?.rounds || 99) <= 6)?.settings?.rounds) || s.set.draft_rounds && s.set.draft_rounds <= 6 && s.set.draft_rounds || 4;
-  // picks owned: start with own picks, apply trades
-  const owned = {};
-  for (const r of s.raw.rosters) for (const yr of nextSeasons) for (let rd = 1; rd <= rookieRounds; rd++) (owned[r.roster_id] ||= []).push({ season: yr, round: rd, orig: r.roster_id });
-  for (const t of s.raw.traded) {
-    if (!nextSeasons.includes(String(t.season)) || t.round > rookieRounds) continue;
-    for (const rid of Object.keys(owned)) owned[rid] = owned[rid].filter(p => !(p.season === String(t.season) && p.round === t.round && p.orig === t.roster_id));
-    (owned[t.owner_id] ||= []).push({ season: String(t.season), round: t.round, orig: t.roster_id });
-  }
+  const { seasons: nextSeasons, rounds: rookieRounds, owned } = picksLedger(s);
   const rosterRows = s.raw.rosters.map(r => {
     const oid = s.ownerOf[r.roster_id];
     const ps = (r.players || []).map(pid => ({ pid, ...(M.players[pid] || { n: pname(pid), pos: ppos(pid), age: null }), v: vals?.[pid] || 0 }));
@@ -1123,6 +1145,104 @@ function viewDynasty() {
     <div class="stack">${table}${legend}${buzzHTML}</div>`;
 }
 
+
+/* ---------------- draft pick ledger (shared) ---------------- */
+function picksLedger(s) {
+  const first = ["pre_draft", "drafting"].includes(s.league.status) ? +s.year : +s.year + 1;
+  const seasons = [0, 1, 2].map(i => String(first + i));
+  const rounds = (s.raw.drafts.find(d => (d.settings?.rounds || 99) <= 6)?.settings?.rounds) || (s.set.draft_rounds && s.set.draft_rounds <= 6 ? s.set.draft_rounds : 4);
+  const owned = {};
+  for (const r of s.raw.rosters) for (const yr of seasons) for (let rd = 1; rd <= rounds; rd++) (owned[r.roster_id] ||= []).push({ season: yr, round: rd, orig: r.roster_id });
+  for (const t of s.raw.traded) {
+    if (!seasons.includes(String(t.season)) || t.round > rounds) continue;
+    for (const rid of Object.keys(owned)) owned[rid] = owned[rid].filter(p => !(p.season === String(t.season) && p.round === t.round && p.orig === t.roster_id));
+    (owned[t.owner_id] ||= []).push({ season: String(t.season), round: t.round, orig: t.roster_id });
+  }
+  for (const k of Object.keys(owned)) owned[k].sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round || a.orig - b.orig);
+  return { seasons, rounds, owned };
+}
+
+/* ---------------- franchises ---------------- */
+const POS_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6 };
+const slotLabel = sl => ({ SUPER_FLEX: "SF", FLEX: "FLX", REC_FLEX: "R-FLX", WRRB_FLEX: "W/R", IDP_FLEX: "IDP" }[sl] || sl);
+function teamsAlpha() {
+  return [...M.cur.raw.rosters].map(r => ({ rid: r.roster_id, oid: M.cur.ownerOf[r.roster_id] })).sort((a, b) => teamName(a.oid).localeCompare(teamName(b.oid)));
+}
+function teamPicker(selRid) {
+  return `<div class="picker"><label class="eyebrow" for="team-pick">${selRid ? "Switch franchise" : "Pick a franchise"}</label>
+    <select id="team-pick" class="sel"><option value="">Choose a team…</option>${teamsAlpha().map(t => `<option value="${t.rid}"${t.rid === selRid ? " selected" : ""}>${esc(teamName(t.oid))}</option>`).join("")}</select></div>`;
+}
+
+function viewFranchises() {
+  if (STATE.team != null && M.cur.raw.rosters.some(r => r.roster_id === STATE.team)) return viewTeam(STATE.team);
+  const s = M.cur, at = M.allTime;
+  const tiles = teamsAlpha().map(t => {
+    const r = s.rec[t.rid], a = at[t.oid] || {};
+    return `<a class="ftile" href="#team-${t.rid}" style="--team:${color(t.oid)}">${avatarHTML(t.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(t.oid))}</div>
+      <div class="mgr">${r && r.results.length ? `${recStr(r)} · ${ordinal(r.rank)}` : "No games yet"}${a.titles ? ` · ${"🏆".repeat(Math.min(a.titles, 5))}` : ""}</div></div><span class="arrow" aria-hidden="true">→</span></a>`;
+  }).join("");
+  return `<div class="section-h"><div><div class="eyebrow">${plural(s.raw.rosters.length, "team")} · ${s.year}</div><h2>Franchises</h2></div>${teamPicker(null)}</div>
+    <div class="ftiles">${tiles}</div>`;
+}
+
+function playerRow(pid, slot, vals, s) {
+  const p = M.players[pid] || {};
+  const ppg = s.pAvg[pid];
+  const inj = p.inj ? ` <span class="pill out" style="font-size:9px;padding:2px 5px">${esc(p.inj)}</span>` : "";
+  return `<tr>${slot !== undefined ? `<td class="slot">${esc(slotLabel(slot))}</td>` : ""}<td><span class="pname">${esc(pid && pid !== "0" ? pname(pid) : "Empty slot")}</span>${inj}</td>
+    <td class="muted">${esc(ppos(pid))}${pteam(pid) ? " · " + esc(pteam(pid)) : ""}</td><td class="n">${p.age ?? "–"}</td><td class="n">${ppg ? fmt(ppg) : "–"}</td>${vals ? `<td class="n">${vals[pid] ? Math.round(vals[pid]).toLocaleString() : "–"}</td>` : ""}</tr>`;
+}
+
+function viewTeam(rid) {
+  const s = M.cur, oid = s.ownerOf[rid], roster = s.raw.rosters.find(r => r.roster_id === rid), vals = STATE.values;
+  const r = s.rec[rid], a = M.allTime[oid] || {}, odds = STATE.odds?.res[rid];
+  const starters = roster.starters || [];
+  const reserve = new Set(roster.reserve || []), taxi = new Set(roster.taxi || []), startSet = new Set(starters);
+  const sortP = (x, y) => (POS_ORDER[ppos(x)] || 9) - (POS_ORDER[ppos(y)] || 9) || (vals?.[y] || 0) - (vals?.[x] || 0) || (s.pAvg[y] || 0) - (s.pAvg[x] || 0);
+  const bench = (roster.players || []).filter(p => !startSet.has(p) && !reserve.has(p) && !taxi.has(p)).sort(sortP);
+  const head = (withSlot) => `<thead><tr>${withSlot ? "<th>Slot</th>" : ""}<th>Player</th><th>Pos · NFL</th><th class="n">Age</th><th class="n">PPG</th>${vals ? '<th class="n">Value</th>' : ""}</tr></thead>`;
+  const table = (title, ids, withSlot, note) => ids.length ? `<section><h3>${title} <span class="count">${ids.length}</span></h3>${note ? `<p class="note" style="margin:-6px 0 10px">${note}</p>` : ""}<div class="tbl-wrap"><table class="roster">${head(withSlot)}<tbody>${ids.map((pid, i) => playerRow(pid, withSlot ? s.slots[i] || "" : undefined, vals, s)).join("")}</tbody></table></div></section>` : "";
+
+  // picks
+  const L = picksLedger(s);
+  const mine = L.owned[rid] || [];
+  const gone = L.seasons.flatMap(yr => range(1, L.rounds).map(rd => ({ season: yr, round: rd }))).filter(p => !mine.some(m => m.season === p.season && m.round === p.round && m.orig === rid))
+    .map(p => { const holder = Object.entries(L.owned).find(([, list]) => list.some(m => m.season === p.season && m.round === p.round && m.orig === rid)); return { ...p, to: holder ? +holder[0] : null }; });
+  const pickCols = L.seasons.map(yr => {
+    const list = mine.filter(p => p.season === yr);
+    return `<div class="pickcol"><div class="pick-yr">${yr}</div>${list.length ? list.map(p => `<div class="pick ${p.round === 1 ? "r1" : ""}"><b>Round ${p.round}</b><span>${p.orig === rid ? "Own" : "via " + esc(teamName(s.ownerOf[p.orig]))}</span></div>`).join("") : `<div class="muted" style="font-size:13px">No picks. Bold.</div>`}</div>`;
+  }).join("");
+  const goneHTML = gone.length ? `<p class="note" style="margin:12px 0 0">Traded away: ${gone.map(p => `${p.season} R${p.round}${p.to ? ` (now ${esc(teamName(s.ownerOf[p.to]))})` : ""}`).join(", ")}.</p>` : "";
+  const firsts = mine.filter(p => p.round === 1).length;
+  const pickQuip = firsts >= 4 ? "Hoarding firsts like it's a doomsday bunker." : firsts === 0 ? "Zero first-rounders. Win-now or bust, apparently." : gone.length === 0 && mine.length === L.seasons.length * L.rounds ? "Hasn't traded a single pick. Patience or paralysis?" : "";
+
+  // last rookie draft haul
+  const drafts = M.seasons.flatMap(x => x.raw.drafts.map(d => ({ d, picks: x.raw.draftPicks[d.draft_id] }))).filter(x => x.d.status === "complete" && x.picks?.length && (x.d.settings?.rounds || 99) <= 6).sort((p, q) => (q.d.start_time || 0) - (p.d.start_time || 0));
+  const haul = drafts[0] ? drafts[0].picks.filter(p => p.picked_by === oid || p.roster_id === rid).sort((p, q) => p.pick_no - q.pick_no) : [];
+  const nm = p => p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id);
+  const per = (s.league.total_rosters || s.raw.rosters.length);
+  const haulHTML = haul.length ? `<p class="note" style="margin:8px 0 0">${drafts[0].d.season} rookie draft: ${haul.map(p => `${p.round}.${String(((p.pick_no - 1) % per) + 1).padStart(2, "0")} ${esc(nm(p))}`).join(", ")}.</p>` : "";
+
+  const stat = (lbl, v) => `<div class="tstat"><div class="eyebrow">${lbl}</div><div class="v">${v}</div></div>`;
+  const quip = r && r.results.length ? formQuip(r) : "";
+  return `<div class="team-top">
+    <a class="back" href="#franchises">← All franchises</a>${teamPicker(rid)}</div>
+    <header class="team-hero" style="--team:${color(oid)}">${avatarHTML(oid, "av big")}<div style="min-width:0"><div class="eyebrow">Franchise since ${O(oid).seasons[0] || s.year}</div><h2>${esc(teamName(oid))}</h2>${quip ? `<p class="tquip">${esc(quip)}</p>` : ""}</div></header>
+    <div class="tstats">
+      ${r && r.results.length ? stat(`${s.year} record`, `${recStr(r)} <small>${ordinal(r.rank)}</small>`) + stat("Points for", fmt(r.pf)) : ""}
+      ${odds ? stat("Playoff odds", pct(odds.playoff)) : ""}
+      ${a.g ? stat("All-time", `${a.w}-${a.l}${a.t ? "-" + a.t : ""}`) : ""}
+      ${stat("Titles", a.titles ? "🏆".repeat(Math.min(a.titles, 5)) : "0")}
+    </div>
+    <div class="stack" style="margin-top:20px">
+      ${table("Starting lineup", starters, true, "As currently set in Sleeper.")}
+      ${table("Bench", bench, false)}
+      ${table("Taxi squad", (roster.taxi || []).slice().sort(sortP), false)}
+      ${table("Injured reserve", (roster.reserve || []).slice().sort(sortP), false)}
+      <section><h3>Draft picks <span class="count">${mine.length}</span></h3>${pickQuip ? `<p class="note" style="margin:-6px 0 10px">${pickQuip}</p>` : ""}
+        <div class="panel"><div class="pickgrid">${pickCols}</div>${goneHTML}${haulHTML}</div></section>
+    </div>`;
+}
 
 /* ---------------- landing gate ---------------- */
 const TAGLINES = [
@@ -1191,7 +1311,7 @@ function render() {
   const app = $("#app");
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.v === STATE.view)));
   try {
-    app.innerHTML = { gameday: viewGameday, stories: viewStories, outlook: viewOutlook, history: viewHistory, dynasty: viewDynasty }[STATE.view]();
+    app.innerHTML = { gameday: viewGameday, stories: viewStories, outlook: viewOutlook, history: viewHistory, dynasty: viewDynasty, franchises: viewFranchises }[STATE.view]();
   } catch (e) {
     console.error(e);
     app.innerHTML = `<div class="panel err"><h3>This view hit a snag</h3><p class="muted">${esc(e.message)}</p></div>`;
@@ -1287,14 +1407,18 @@ async function boot() {
   await refreshGameday(false);
   route();
   // secondary sources in the background
-  loadValues(s).then(v => { STATE.values = v; if (STATE.view === "dynasty") render(); else renderFooter(); });
+  loadValues(s).then(v => { STATE.values = v; if (["dynasty", "franchises"].includes(STATE.view)) render(); else renderFooter(); });
   loadTrending().then(t => { STATE.trending = t; if (STATE.view === "dynasty") render(); });
+  window.scrollTo(0, 0);
 }
 
 function route() {
   const v = location.hash.slice(1);
-  STATE.view = ["gameday", "stories", "outlook", "history", "dynasty"].includes(v) ? v : "gameday";
-  if (M) render();
+  const tm = v.match(/^team-(\d+)$/);
+  const prev = STATE.view + STATE.team;
+  STATE.team = tm ? +tm[1] : null;
+  STATE.view = tm ? "franchises" : ["gameday", "stories", "outlook", "history", "dynasty", "franchises"].includes(v) ? v : "gameday";
+  if (M) { render(); if (prev !== STATE.view + STATE.team) window.scrollTo(0, 0); }
 }
 window.addEventListener("hashchange", route);
 $("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) location.hash = t.dataset.v; });
@@ -1306,6 +1430,7 @@ $("#app").addEventListener("click", async e => {
   const so = e.target.closest("[data-sort]");
   if (so) { const k = so.dataset.sort; STATE.sort = { k, d: STATE.sort.k === k ? -STATE.sort.d : -1 }; render(); }
 });
+$("#app").addEventListener("change", e => { if (e.target.id === "team-pick" && e.target.value) location.hash = "team-" + e.target.value; });
 $("#refresh").addEventListener("click", async () => {
   if (!M) return boot();
   const b = $("#refresh"); b.disabled = true; b.textContent = "Refreshing…";
