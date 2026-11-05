@@ -472,6 +472,16 @@ a.wk{text-decoration:none;color:inherit;text-align:center;display:inline-block}
 .tr-row{grid-template-columns:minmax(90px,150px) 1fr 50px 100px}
 .tr-rec{font-size:11px;text-align:right}
 @media (max-width:640px){.tr-row{grid-template-columns:minmax(0,1fr) 46px}.tr-row .lbar{grid-column:1/-1;grid-row:2}.tr-rec{display:none}}
+/* journeymen */
+.jtable td{vertical-align:middle}
+.jname{font-weight:700;border-left:3px solid var(--pos);padding-left:8px}
+.jboom{font:600 9px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 6px;vertical-align:middle;margin-left:4px}
+.jpath{white-space:normal;min-width:280px;line-height:2}
+.jstop{display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 7px;border:1px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--surface-2)}
+.jstop i{width:9px;height:9px;border-radius:50%;background:var(--team)}
+.jstop small{font:500 10.5px var(--mono);color:var(--muted)}
+.jarrow{color:var(--muted);padding:0 5px}
+details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -1591,8 +1601,8 @@ function viewDynasty() {
   </tbody></table></div>`;
   const legend = vals ? `<p class="note">${Object.entries(posCol).map(([p, c]) => `<span class="chip" style="background:${c}"></span>${p}`).join(" &nbsp; ")} · Values from FantasyCalc's dynasty trade market, matched to your league's QB format and scoring. Picks counted from Sleeper's traded-pick ledger for the next three rookie drafts (${rookieRounds} rounds).</p>`
     : `<p class="note">Dynasty trade values couldn't be loaded, so teams are sorted by age. Picks counted from Sleeper's traded-pick ledger.</p>`;
-  return `<div class="section-h"><div><div class="eyebrow">Built for the long game</div><h2>Dynasty Outlook</h2></div><div class="jump"><button class="btn" type="button" data-jump="sec-trades">Trade review</button></div></div>
-    <div class="stack" style="gap:36px"><div class="stack">${table}${legend}</div>${tradeSection()}</div>`;
+  return `<div class="section-h"><div><div class="eyebrow">Built for the long game</div><h2>Dynasty Outlook</h2></div><div class="jump"><button class="btn" type="button" data-jump="sec-trades">Trade review</button><button class="btn" type="button" data-jump="sec-journeymen">Journeymen</button></div></div>
+    <div class="stack" style="gap:36px"><div class="stack">${table}${legend}</div>${tradeSection()}${journeySection()}</div>`;
 }
 
 
@@ -2196,6 +2206,66 @@ function tradeSection() {
       ${R.jury.length ? `<div><h4 class="mini">Jury's still out</h4><p class="note" style="margin:-4px 0 12px">Too recent, or still waiting on draft picks that haven't been used.</p>${list(R.jury, "jury", "")}</div>` : ""}
       <p class="note">Each side is credited with starter points from what it received: players while they stayed on that roster, and rookie picks through the player drafted with them. Bench points don't count. Grades compare each side's share of the total. Trades need 3 weeks of games before they're ranked, and deals still waiting on a first- or second-round pick stay in "Jury's still out."</p>
     </div>`);
+}
+
+/* ---------------- journeymen: players who've been on more than one franchise ----------------
+   Ownership comes from every completed week's rosters plus today's rosters; moves are counted from transactions. */
+function journeymen() {
+  const tl = {}, seen = (pid, y, w, oid) => {
+    if (!pid || pid === "0" || !oid) return;
+    const t = tl[pid] ||= [], last = t[t.length - 1];
+    if (last && last.oid === oid) { last.to = y; return; }
+    t.push({ oid, from: y, to: y });
+  };
+  for (const s of M.seasons) {
+    for (const wk of Object.keys(s.raw.weeks).map(Number).sort((a, b) => a - b)) {
+      if (wk > s.lastDone) continue;
+      for (const e of s.raw.weeks[wk] || []) for (const pid of e.players || []) seen(pid, s.year, wk, s.ownerOf[e.roster_id]);
+    }
+  }
+  const cur = M.cur, now = {};
+  for (const r of cur.raw.rosters) for (const pid of r.players || []) { now[pid] = cur.ownerOf[r.roster_id]; seen(pid, cur.year, 99, cur.ownerOf[r.roster_id]); }
+  const moves = {};
+  for (const s of M.seasons) for (const list of Object.values(s.raw.tx)) for (const t of list || []) {
+    if (t.status !== "complete") continue;
+    for (const pid of Object.keys(t.adds || {})) { const m = moves[pid] ||= { trades: 0, pickups: 0, drops: 0 }; if (t.type === "trade") m.trades++; else m.pickups++; }
+    if (t.type !== "trade") for (const pid of Object.keys(t.drops || {})) (moves[pid] ||= { trades: 0, pickups: 0, drops: 0 }).drops++;
+  }
+  const list = Object.entries(tl).map(([pid, stints]) => {
+    const teams = [...new Set(stints.map(x => x.oid))];
+    const m = moves[pid] || { trades: 0, pickups: 0, drops: 0 };
+    const boomerang = stints.length > teams.length;
+    return { pid, stints, teams: teams.length, trades: m.trades, pickups: m.pickups, drops: m.drops, boomerang, now: now[pid] || null };
+  }).filter(x => x.teams >= 2)
+    .sort((a, b) => b.teams - a.teams || b.stints.length - a.stints.length || b.trades - a.trades || pname(a.pid).localeCompare(pname(b.pid)));
+  return list;
+}
+
+const J_HEAD = ["Passport Full of Stamps", "Has Lived Everywhere", "Unpacks One Box at a Time", "Frequent Flyer Status: Platinum"];
+function journeySection() {
+  const L = journeymen();
+  if (!L.length) return section("journeymen", "The Journeymen", "", `<div class="panel"><p class="tquip" style="margin:0">Nobody has changed teams yet. This league is surprisingly loyal.</p></div>`);
+  const yr = (a, b) => a === b ? `'${String(a).slice(2)}` : `'${String(a).slice(2)}–'${String(b).slice(2)}`;
+  const path = j => j.stints.map(st => `<span class="jstop" style="--team:${color(st.oid)}" title="${esc(teamName(st.oid))}, ${st.from === st.to ? st.from : st.from + "–" + st.to}"><i></i>${esc(teamName(st.oid))}<small>${yr(st.from, st.to)}</small></span>`).join('<span class="jarrow" aria-hidden="true">→</span>');
+  const row = (j, i) => {
+    const p = M.players[j.pid] || {};
+    return `<tr><td class="n">${i + 1}</td><td><div class="jname" style="--pos:${posColor(j.pid)}">${esc(pname(j.pid))}${j.boomerang ? ' <span class="jboom" title="Came back to a former franchise">Boomerang</span>' : ""}</div><div class="muted" style="font-size:12px">${esc(ppos(j.pid))}${p.team ? " · " + esc(p.team) : ""}${p.age ? ` · ${p.age} yo` : ""}</div></td>
+      <td class="jpath">${path(j)}</td><td class="n">${j.teams}</td><td class="n">${j.trades}</td><td class="n">${j.pickups}</td><td>${j.now ? esc(teamName(j.now)) : '<span class="muted">Free agent</span>'}</td></tr>`;
+  };
+  const head = `<thead><tr><th class="n">#</th><th>Player</th><th>The journey</th><th class="n">Teams</th><th class="n">Trades</th><th class="n">Pickups</th><th>Now</th></tr></thead>`;
+  const top = L.slice(0, 15), rest = L.slice(15);
+  const most = L[0], traded = [...L].sort((a, b) => b.trades - a.trades)[0], boom = L.find(j => j.boomerang), flyer = [...L].sort((a, b) => b.pickups - a.pickups)[0];
+  const cards = [
+    { tone: "hot", oid: most.now || most.stints[most.stints.length - 1].oid, kicker: "Most traveled", head: `${pname(most.pid)}: ${fresh(J_HEAD, most.pid)}`, body: `${plural(most.teams, "franchise")} and counting${most.boomerang ? ", including a return trip" : ""}. Somebody get this man a moving company on retainer.`, stat: most.stints.map(s => teamName(s.oid)).join(" → ") },
+    traded && traded.trades >= 2 ? { tone: "hot", oid: traded.now || traded.stints[traded.stints.length - 1].oid, kicker: "Most traded", head: `${pname(traded.pid)} Keeps Getting Flipped`, body: `Traded ${traded.trades} times. Every manager wants him until they have him.`, stat: `${plural(traded.teams, "franchise")} · ${plural(traded.trades, "trade")}` } : null,
+    boom ? { tone: "hot", oid: boom.now || boom.stints[boom.stints.length - 1].oid, kicker: "Boomerang", head: `${pname(boom.pid)} Came Home`, body: `Left a franchise and ended up right back there. Some breakups don't stick.`, stat: boom.stints.map(s => teamName(s.oid)).join(" → ") } : null,
+    flyer && flyer.pickups >= 2 ? { tone: "cold", oid: flyer.now || flyer.stints[flyer.stints.length - 1].oid, kicker: "Waiver wire regular", head: `${pname(flyer.pid)} Knows the Wire by Heart`, body: `Picked up off waivers or free agency ${flyer.pickups} times. Dropped ${plural(flyer.drops, "time")}. The ultimate break-glass-in-case-of-emergency guy.`, stat: `${plural(flyer.teams, "franchise")}` } : null
+  ].filter(Boolean);
+  return section("journeymen", "The Journeymen", `${plural(L.length, "player")} who've suited up for more than one franchise`,
+    `<div class="grid g2" style="margin-bottom:16px">${cards.map(storyCard).join("")}</div>
+     <div class="tbl-wrap"><table class="jtable">${head}<tbody>${top.map(row).join("")}</tbody></table></div>
+     ${rest.length ? `<details class="jmore"><summary>Show all ${L.length} players</summary><div class="tbl-wrap" style="margin-top:10px"><table class="jtable">${head}<tbody>${rest.map((j, i) => row(j, i + 15)).join("")}</tbody></table></div></details>` : ""}
+     <p class="note">Built from every completed week's rosters on Sleeper plus today's rosters, so a player picked up and dropped within the same week won't show that stop. "Trades" and "Pickups" count each time he changed hands by trade, or was added off waivers or free agency. A boomerang came back to a franchise he'd already left.</p>`);
 }
 
 /* ---------------- draft pick ledger (shared) ---------------- */
