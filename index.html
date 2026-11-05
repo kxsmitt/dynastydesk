@@ -859,74 +859,216 @@ function h2hAsOf(x, y, yr, wk, inclusive) {
   for (let i = counted.length - 1; i >= 0; i--) { const win = winnerOf(counted[i]); if (sOwner === undefined) sOwner = win; if (win == null || win !== sOwner) break; streak++; }
   return { w, l, t, n: counted.length, last: prior[prior.length - 1] || null, streak, sOwner, playoffs: counted.some(g => g.bracket === "W") };
 }
-function seriesText(x, y, h) {
-  if (!h.n) return "";
-  const t = h.t ? "-" + h.t : "";
-  if (h.w === h.l) return `Series tied ${h.w}-${h.l}${t}.`;
-  return `${teamName(h.w > h.l ? x : y)} leads the series ${Math.max(h.w, h.l)}-${Math.min(h.w, h.l)}${t}.`;
+// ---- line pools: every render draws without replacement, so no line appears twice on a page ----
+const USED = new Set();
+function fresh(pool, seed, ...args) {
+  const n = pool.length, start = hash(seed) % n;
+  for (let i = 0; i < n; i++) { const c = pool[(start + i) % n]; if (!USED.has(c)) { USED.add(c); return typeof c === "function" ? c(...args) : c; } }
+  const c = pool[start]; return typeof c === "function" ? c(...args) : c;
 }
-function lastMeetingText(h, label = "Last meeting") {
+
+const SERIES_TIED = [
+  (w, l) => `The all-time series sits at ${w}-${l}.`,
+  (w, l) => `History says ${w}-${l}. Nobody gets to talk trash about the record.`,
+  (w, l) => `Dead-even history at ${w}-${l}, which means this one breaks the tie in the group chat.`,
+  (w, l) => `${w}-${l} all-time. Perfectly balanced, as all rivalries should be.`,
+  (w, l) => `They've split the series ${w}-${l}. Somebody finally has to blink.`,
+  (w, l) => `${w}-${l} lifetime. Even the tiebreaker needs a tiebreaker.`
+];
+const SERIES_LEAD = [
+  (L, T, hi, lo) => `${L} leads the series ${hi}-${lo}.`,
+  (L, T, hi, lo) => `${L} owns a ${hi}-${lo} edge all-time.`,
+  (L, T, hi, lo) => `History favors ${L}, ${hi}-${lo}.`,
+  (L, T, hi, lo) => `${L} is ${hi}-${lo} against ${T} and brings it up at every family gathering.`,
+  (L, T, hi, lo) => `The ledger reads ${L} ${hi}, ${T} ${lo}.`,
+  (L, T, hi, lo) => `${T} trails this series ${lo}-${hi} and is tired of hearing about it.`,
+  (L, T, hi, lo) => `${hi}-${lo} all-time in ${L}'s favor. ${T} disputes the math.`,
+  (L, T, hi, lo) => `${L} has had ${T}'s number, ${hi}-${lo}.`,
+  (L, T, hi, lo) => `Lifetime: ${L} ${hi}, ${T} ${lo}. Receipts available on request.`
+];
+const SERIES_NOW = [
+  (L, T, hi, lo) => `That makes it ${hi}-${lo} ${L} all-time.`,
+  (L, T, hi, lo) => `The series moves to ${hi}-${lo}, ${L}.`,
+  (L, T, hi, lo) => `${L} now holds a ${hi}-${lo} lifetime edge.`,
+  (L, T, hi, lo) => `Running tally: ${L} ${hi}, ${T} ${lo}.`,
+  (L, T, hi, lo) => `${T} falls to ${lo}-${hi} all-time against ${L}.`,
+  (L, T, hi, lo) => `Lifetime series, updated: ${L} ${hi}-${lo}.`
+];
+const SERIES_NOW_TIED = [
+  (w, l) => `And just like that the series is tied ${w}-${l}.`,
+  (w, l) => `Series now level at ${w}-${l}. Game on.`,
+  (w, l) => `All square at ${w}-${l} all-time.`
+];
+const LAST_MEET = [
+  (W, Lo, hi, lo, when) => `Last time out (${when}), ${W} won ${hi}-${lo}.`,
+  (W, Lo, hi, lo, when) => `${W} took the last one, ${hi}-${lo}, back in ${when}.`,
+  (W, Lo, hi, lo, when) => `Most recently: ${W} ${hi}, ${Lo} ${lo} (${when}).`,
+  (W, Lo, hi, lo, when) => `${Lo} still remembers ${when}: a ${hi}-${lo} loss to ${W}.`,
+  (W, Lo, hi, lo, when) => `In ${when}, ${W} sent ${Lo} home ${hi}-${lo}.`,
+  (W, Lo, hi, lo, when) => `The last meeting (${when}) went to ${W}, ${hi}-${lo}.`,
+  (W, Lo, hi, lo, when) => `${W} won the previous round, ${hi}-${lo} in ${when}. Revenge is on the menu.`,
+  (W, Lo, hi, lo, when) => `Flashback to ${when}: ${W} ${hi}, ${Lo} ${lo}. ${Lo} has thoughts.`
+];
+const PREV_MEET = [
+  (W, Lo, hi, lo, when) => `Before this, ${W} won ${hi}-${lo} in ${when}.`,
+  (W, Lo, hi, lo, when) => `Their previous meeting (${when}) went ${W}'s way, ${hi}-${lo}.`,
+  (W, Lo, hi, lo, when) => `Last time before this one: ${W} ${hi}, ${Lo} ${lo} (${when}).`,
+  (W, Lo, hi, lo, when) => `This follows a ${hi}-${lo} ${W} win in ${when}.`,
+  (W, Lo, hi, lo, when) => `Go back to ${when} and you'll find ${W} winning ${hi}-${lo}.`
+];
+const STREAK = [
+  (O, n) => `${O} has won ${n} straight in this one. Landlord behavior.`,
+  (O, n) => `That's ${n} in a row for ${O}. At some point it's just rent.`,
+  (O, n) => `${O} owns this matchup: ${n} straight.`,
+  (O, n) => `${n} consecutive wins for ${O} here. Restraining order pending.`,
+  (O, n) => `${O} is on a ${n}-game heater in this series. It's getting personal.`
+];
+
+const LEAD_LOCK = [
+  (F, D, p) => `${F} has this wrapped. ${D} is playing for pride, and pride isn't a PPR stat.`,
+  (F, D, p) => `${F} sits at ${p}. ${D} needs a miracle and a stat correction.`,
+  (F, D, p) => `Barring an act of God, ${F} takes it.`,
+  (F, D, p) => `${D} would need a Hail Mary, a pick-six and a kicker going off. ${F} is cruising.`,
+  (F, D, p) => `Stick a fork in it. ${F} at ${p}.`,
+  (F, D, p) => `${F} is already practicing the victory screenshot.`,
+  (F, D, p) => `${D}'s comeback odds are roughly the same as the Jets winning a Super Bowl.`
+];
+const LEAD_STRONG = [
+  (F, D, p) => `${F} is in control at ${p}. ${D} needs something weird to happen.`,
+  (F, D, p) => `${F} is favored at ${p}, and ${D}'s bench is starting to look awfully tempting.`,
+  (F, D, p) => `The model likes ${F} at ${p}. The model has been wrong before. Not often.`,
+  (F, D, p) => `${D} has a path, it just runs through three touchdowns nobody saw coming. ${F} at ${p}.`,
+  (F, D, p) => `${F} at ${p}. ${D} is refreshing the app like it owes them money.`,
+  (F, D, p) => `Advantage ${F} (${p}). ${D} is scanning the waiver wire for miracles.`,
+  (F, D, p) => `${F} is comfortably ahead at ${p}. Comfortable is when they usually fumble.`
+];
+const LEAD_LEAN = [
+  (F, D, p) => `${F} has the edge, but ${D} is one big play from ruining someone's night.`,
+  (F, D, p) => `Lean ${F}, but don't print the shirts yet.`,
+  (F, D, p) => `${F} at ${p}. Translation: nobody should be talking yet.`,
+  (F, D, p) => `Slight edge ${F}. ${D} is a garbage-time touchdown away from flipping it.`,
+  (F, D, p) => `${F} is favored, ${p}, which in fantasy means absolutely nothing until Monday.`,
+  (F, D, p) => `Tilted toward ${F}, but this one has Monday Night Football heartbreak written all over it.`,
+  (F, D, p) => `${F} by a nose at ${p}. Check back after the late window.`
+];
+const LEAD_COIN = [
+  () => `A genuine coin flip. Somebody's heart breaks Monday night.`,
+  () => `Dead even. Set your lineup like your family's honor depends on it.`,
+  () => `Too close to call. Start praying to the kicker gods.`,
+  () => `50/50. Whoever remembered to bench the guy on bye wins this.`,
+  () => `This one comes down to a two-point conversion in the 4th quarter. Calling it now.`,
+  () => `The simulator threw up its hands. Pure chaos.`,
+  () => `Coin flip, and the coin is also nervous.`,
+  () => `Statistically a tie. Emotionally a war.`
+];
+
+function seriesText(x, y, h, now = false) {
+  if (!h.n) return "";
+  const seed = x + y + h.n + now;
+  if (h.w === h.l) return fresh(now ? SERIES_NOW_TIED : SERIES_TIED, seed, h.w, h.l);
+  const L = teamName(h.w > h.l ? x : y), T = teamName(h.w > h.l ? y : x);
+  return fresh(now ? SERIES_NOW : SERIES_LEAD, seed, L, T, Math.max(h.w, h.l), Math.min(h.w, h.l));
+}
+function lastMeetingText(h, prev = false) {
   const g = h.last; if (!g) return "";
-  const win = winnerOf(g), hi = Math.max(g.a.pts, g.b.pts), lo = Math.min(g.a.pts, g.b.pts);
-  const when = `${g.year === M.cur.year ? `week ${g.week} this season` : `${g.year}, week ${g.week}`}${g.bracket === "W" ? ", playoffs" : ""}`;
-  return win ? `${label} (${when}): ${teamName(win)} won ${fmt(hi)}-${fmt(lo)}.` : `${label} (${when}) ended in a tie, somehow.`;
+  const win = winnerOf(g), hi = fmt(Math.max(g.a.pts, g.b.pts)), lo = fmt(Math.min(g.a.pts, g.b.pts));
+  const when = `${g.year === M.cur.year ? `week ${g.week}` : `week ${g.week} of ${g.year}`}${g.bracket === "W" ? " (playoffs)" : ""}`;
+  if (!win) return `Their last meeting (${when}) ended in a tie, somehow.`;
+  const lose = teamName(win === g.a.oid ? g.b.oid : g.a.oid);
+  return fresh(prev ? PREV_MEET : LAST_MEET, g.year + g.week + win + prev, teamName(win), lose, hi, lo, when);
 }
 function streakQuip(h) {
   if (h.streak < 3 || !h.sOwner) return "";
-  return pick([
-    `${teamName(h.sOwner)} has won ${h.streak} straight in this one. Landlord behavior.`,
-    `That's ${h.streak} in a row for ${teamName(h.sOwner)}. At some point it's just rent.`,
-    `${teamName(h.sOwner)} owns this matchup: ${h.streak} straight.`
-  ], h.sOwner + h.streak + h.n);
+  return fresh(STREAK, h.sOwner + h.streak + h.n, teamName(h.sOwner), h.streak);
 }
 
 function previewLead(mu, wk) {
   const { a, b, pA } = mu;
   const fav = pA >= 0.5 ? a : b, dog = fav === a ? b : a, fp = Math.max(pA, 1 - pA), F = teamName(fav.oid), D = teamName(dog.oid);
-  const seed = a.oid + b.oid + wk;
-  return fp > 0.97 ? pick([`${F} has this wrapped. ${D} is playing for pride, and pride isn't a PPR stat.`, `${F} is up ${pct(fp)}. ${D} needs a miracle and a stat correction.`, `Barring a stat correction from the heavens, ${F} takes it.`], seed)
-    : fp > 0.8 ? pick([`${F} is in control at ${pct(fp)}. ${D} needs something weird to happen.`, `${F} is favored at ${pct(fp)}. ${D}'s bench is looking awfully tempting right now.`], seed)
-    : fp > 0.6 ? pick([`${F} has the edge, but ${D} is one big play from ruining someone's night.`, `Lean ${F}, but don't print the shirts yet.`], seed)
-    : pick(["A genuine coin flip. Somebody's heart breaks Monday night.", "Dead even. Set your lineup like your family's honor depends on it.", "Too close to call. Start praying to the kicker gods."], seed);
+  const pool = fp > 0.97 ? LEAD_LOCK : fp > 0.8 ? LEAD_STRONG : fp > 0.6 ? LEAD_LEAN : LEAD_COIN;
+  return fresh(pool, a.oid + b.oid + wk, F, D, pct(fp));
 }
+const FIRST_MEET = ["First-ever meeting. No history, no grudges. Yet.", "These two have never met. Today a grudge is born.", "Brand-new matchup. Clean slate, dirty intentions."];
 function previewBlurb(mu, odds, yr, wk) {
   const { a, b } = mu;
   const lead = previewLead(mu, wk);
   const h = h2hAsOf(a.oid, b.oid, yr, wk, false);
-  const hist = h.n ? [seriesText(a.oid, b.oid, h), lastMeetingText(h), streakQuip(h)].filter(Boolean).join(" ") : "First-ever meeting. No history, no grudges. Yet.";
+  const hist = h.n ? [seriesText(a.oid, b.oid, h), lastMeetingText(h), streakQuip(h)].filter(Boolean).join(" ") : fresh(FIRST_MEET, a.oid + b.oid);
   let stakes = "";
   if (odds) {
     const bub = [a, b].filter(s => { const p = odds.res[s.rid]?.playoff; return p > 0.15 && p < 0.85; });
-    if (bub.length === 2) stakes = " Both teams are on the playoff bubble, so this one is basically a play-in game.";
-    else if (bub.length === 1) stakes = ` Big one for ${teamName(bub[0].oid)}, sitting at ${pct(odds.res[bub[0].rid].playoff)} playoff odds.`;
+    if (bub.length === 2) stakes = " " + fresh(["Both teams are on the playoff bubble, so this is basically a play-in game.", "Playoff odds on both sides are wobbling. Loser starts mock-drafting.", "Two bubble teams, one survivor."], a.oid + b.oid + "bub");
+    else if (bub.length === 1) stakes = " " + fresh([(T, p) => `Big one for ${T}, sitting at ${p} playoff odds.`, (T, p) => `${T}'s season might hinge on this: ${p} to make the playoffs.`, (T, p) => `${T} (${p} playoff odds) can't afford a dud.`], bub[0].oid + "bub1", teamName(bub[0].oid), pct(odds.res[bub[0].rid].playoff));
   }
   return `${lead} ${hist}${stakes}`;
 }
 
+const RECAP_TIE = ["A tie. Everyone loses. Literally.", "It ended tied. Nobody is happy and that feels right."];
+const RECAP_CLOSE = [
+  (W, L, m) => `${W} survived by ${m}. Cardiac kids.`,
+  (W, L, m) => `${W} by ${m}. ${L} will be thinking about that bench decision until Christmas.`,
+  (W, L, m) => `${m} points. ${L} lost this one on a missed extra point somewhere.`,
+  (W, L, m) => `${W} escaped by ${m}. Somebody check ${L}'s blood pressure.`,
+  (W, L, m) => `Decided by ${m}. ${L} is drafting a strongly worded letter to the kicker.`,
+  (W, L, m) => `${W} wins by ${m}, which is less than one bad snap. Brutal.`
+];
+const RECAP_ROUT = [
+  (W, L, m) => `${W} won by ${m}. Mercy rule requested, denied.`,
+  (W, L, m) => `${W} by ${m}. ${L}'s lineup was reported missing.`,
+  (W, L, m) => `${W} by ${m}. That wasn't a matchup, it was a public service announcement.`,
+  (W, L, m) => `${W} by ${m}. ${L} might want to check whether they set a lineup at all.`,
+  (W, L, m) => `${W} won by ${m}. The league office is reviewing the tape for cruelty.`
+];
+const RECAP_SOLID = [
+  (W, L, m) => `${W} handled ${L} by ${m}. Not close, not complicated.`,
+  (W, L, m) => `${W} by ${m}. Comfortable enough to check out by the 4 o'clock games.`,
+  (W, L, m) => `${W} beat ${L} by ${m} and never really sweated.`,
+  (W, L, m) => `${m}-point win for ${W}. ${L} was done by halftime of the late games.`,
+  (W, L, m) => `${W} cruised by ${m}. ${L} spent the evening looking at the trade block.`
+];
+const RECAP_PLAIN = [
+  (W, L, m) => `${W} beat ${L} by ${m}.`,
+  (W, L, m) => `${W} takes it by ${m}. A solid, unglamorous W.`,
+  (W, L, m) => `${W} over ${L} by ${m}. Business as usual.`,
+  (W, L, m) => `${W} by ${m}. Not pretty, still counts.`,
+  (W, L, m) => `${W} gets past ${L} by ${m}, no drama required.`
+];
+const STAR = [
+  (P, x) => `${P} led the way with ${x}.`,
+  (P, x) => `${P} dropped ${x} and carried the load.`,
+  (P, x) => `MVP honors go to ${P} (${x}).`,
+  (P, x) => `${P} put up ${x}. Buy that man a crab cake.`,
+  (P, x) => `Shoutout to ${P}, who delivered ${x}.`,
+  (P, x) => `${P} went off for ${x}.`
+];
 function recapBlurb(mu, yr, wk) {
   const [w, l] = mu.a.pts >= mu.b.pts ? [mu.a, mu.b] : [mu.b, mu.a];
   const W = teamName(w.oid), L = teamName(l.oid), m = w.pts - l.pts, seed = w.oid + l.oid + yr + wk;
-  const lead = m === 0 ? "A tie. Everyone loses. Literally." :
-    m < 3 ? pick([`${W} survived by ${fmt(m, 2)}. Cardiac kids.`, `${W} by ${fmt(m, 2)}. ${L} will be thinking about that bench decision until Christmas.`, `${fmt(m, 2)} points. ${L} lost this one on a missed extra point somewhere.`], seed)
-    : m > 40 ? pick([`${W} won by ${fmt(m)}. Mercy rule requested, denied.`, `${W} by ${fmt(m)}. ${L}'s lineup was reported missing.`, `${W} by ${fmt(m)}. That wasn't a matchup, it was a public service announcement.`], seed)
-    : m > 20 ? pick([`${W} handled ${L} by ${fmt(m)}. Not close, not complicated.`, `${W} by ${fmt(m)}. Comfortable enough to check out by the 4 o'clock games.`], seed)
-    : pick([`${W} beat ${L} by ${fmt(m)}.`, `${W} takes it by ${fmt(m)}. A solid, unglamorous W.`], seed);
+  const lead = m === 0 ? fresh(RECAP_TIE, seed) : fresh(m < 3 ? RECAP_CLOSE : m > 40 ? RECAP_ROUT : m > 20 ? RECAP_SOLID : RECAP_PLAIN, seed, W, L, fmt(m, m < 3 ? 2 : 1));
   const star = [...w.players].sort((p, q) => q.actual - p.actual)[0];
-  const starTxt = star && star.actual > 0 ? ` ${pname(star.pid)} led the way with ${fmt(star.actual)}.` : "";
+  const starTxt = star && star.actual > 0 ? " " + fresh(STAR, seed + "star", pname(star.pid), fmt(star.actual)) : "";
   const h = h2hAsOf(w.oid, l.oid, yr, wk, true);
-  const hist = [h.n > 1 ? seriesText(w.oid, l.oid, h).replace("leads the series", "now leads the series").replace("Series tied", "Series now tied") : "First time these two ever met.", lastMeetingText(h, "Previous meeting"), streakQuip(h)].filter(Boolean).join(" ");
+  const hist = [h.n > 1 ? seriesText(w.oid, l.oid, h, true) : fresh(["First time these two ever met.", "A first meeting, and a first grudge."], seed + "first"), lastMeetingText(h, true), streakQuip(h)].filter(Boolean).join(" ");
   return `${lead}${starTxt} ${hist}`;
 }
 
+const FORM_HOT = [
+  n => "Hasn't lost in a month. Suspicious, honestly.", n => "On a heater. Do not make eye contact.", n => `${n} straight. Someone check this roster for performance enhancers.`,
+  n => "Playing like they read the instruction manual.", n => "Untouchable lately. The trade offers are getting desperate.", n => `${n}-game win streak. Insufferable in the group chat.`,
+  n => "Unbeaten in weeks. The rest of the league is filing complaints.", n => "Rolling. Somebody slow them down.", n => "Hot enough to cook on.", n => "Winning so much the trophy is getting nervous.", n => "Currently the scariest team in the league.", n => "Peaking at the right time, allegedly."
+];
+const FORM_UP = [n => "Trending up.", n => "Found something.", n => "Quietly stacking wins.", n => "Back-to-back Ws. Don't call it a comeback.", n => "Momentum, finally.", n => "Getting warm.", n => "Two straight. Somebody's feeling themselves.", n => "Building a little heater.", n => "On the upswing.", n => "Wins are wins. Two of them, in fact.", n => "Climbing.", n => "Rediscovered how to set a lineup."];
+const FORM_FREEFALL = [
+  n => "Freefall. Rookie draft scouting has begun.", n => `${n} straight Ls. Building character, allegedly.`, n => "Tanking for the 1.01? Bold strategy.",
+  n => "Hasn't won since the leaves were green.", n => `${n} losses in a row. The waiver wire is now a personality.`, n => "Losing streak long enough to have its own podcast.", n => "Haven't won in so long they forgot the celebration.", n => "Currently in the witness protection program.", n => "The L column is doing a lot of heavy lifting.", n => "Rebuild speedrun in progress.", n => "Somebody unplug the router and plug it back in.", n => "Their schedule is just a list of apologies."
+];
+const FORM_DOWN = [n => "Wobbling.", n => "Needs a get-right game.", n => "Group chat is getting quiet.", n => "Two straight losses. Panic is optional, but encouraged.", n => "Cooling off fast.", n => "Lineup decisions under review.", n => "Sliding. Not falling. Yet.", n => "Hit a speed bump. Then another one.", n => "Leaking oil.", n => "Starting to hear footsteps.", n => "Back-to-back Ls. Deep breaths.", n => "The vibes are off."];
+const FORM_MIX = [n => "Flipping coins.", n => "Wildly inconsistent. Very on brand.", n => "Can't decide who it is yet.", n => "Win one, lose one, repeat.", n => "Chaos merchant.", n => "Schrödinger's contender.", n => "Every week is a surprise, including to them.", n => "Alternating like a turn signal.", n => "A mystery wrapped in a bye week.", n => "Exactly .500 energy.", n => "Nobody knows what they are. Including them.", n => "Professional rollercoaster.", n => "Consistently inconsistent.", n => "Coin-flip franchise.", n => "Could beat anyone, could lose to anyone."];
 function formQuip(r) {
   const res = r.results, last = res[res.length - 1]; let n = 0;
   for (let i = res.length - 1; i >= 0 && res[i] === last; i--) n++;
-  const s = r.oid + res.length;
-  if (last === "W" && n >= 4) return pick(["Hasn't lost in a month. Suspicious, honestly.", "On a heater. Do not make eye contact.", `${n} straight. Someone check this roster for performance enhancers.`], s);
-  if (last === "W" && n >= 2) return pick(["Trending up.", "Found something.", "Quietly stacking wins."], s);
-  if (last === "L" && n >= 4) return pick(["Freefall. Rookie draft scouting has begun.", `${n} straight Ls. Building character, allegedly.`, "Tanking for the 1.01? Bold strategy."], s);
-  if (last === "L" && n >= 2) return pick(["Wobbling.", "Needs a get-right game.", "Group chat is getting quiet."], s);
-  return pick(["Flipping coins.", "Wildly inconsistent. Very on brand.", "Can't decide who it is yet."], s);
+  const pool = last === "W" && n >= 4 ? FORM_HOT : last === "W" && n >= 2 ? FORM_UP : last === "L" && n >= 4 ? FORM_FREEFALL : last === "L" && n >= 2 ? FORM_DOWN : FORM_MIX;
+  return fresh(pool, r.oid + res.length, n);
 }
 
 function buildStories(gd, odds) {
@@ -938,13 +1080,13 @@ function buildStories(gd, odds) {
   // ---- The race
   if (odds) {
     const bubble = s.standings.filter(r => { const p = odds.res[r.rid].playoff; return p >= 0.2 && p <= 0.8; });
-    if (bubble.length) race.push({ tone: "hot", kicker: "On the bubble", head: pick(["Every Sunday Is a Playoff Game Now", "Hydrate, Bubble Teams", "Nervous Energy Department"], bubble.length + s.year), oid: bubble[0].oid,
+    if (bubble.length) race.push({ tone: "hot", kicker: "On the bubble", head: fresh(["Every Sunday Is a Playoff Game Now", "Hydrate, Bubble Teams", "Nervous Energy Department"], bubble.length + s.year), oid: bubble[0].oid,
       body: `${bubble.map(r => teamName(r.oid)).join(", ")} ${bubble.length === 1 ? "is" : "are"} fighting for the last spots with ${plural(odds.weeksLeft, "week")} to go.`, stat: bubble.map(r => `${teamName(r.oid)} ${pct(odds.res[r.rid].playoff)}`).join(" · ") });
     const lock = s.standings.filter(r => odds.res[r.rid].playoff >= 0.995);
-    if (lock.length) race.push({ tone: "hot", kicker: "Basically in", head: pick(["Already Shopping for Ring Sizes", "Punching the Ticket", "Clear the Calendar"], lock.length), oid: lock[0].oid,
+    if (lock.length) race.push({ tone: "hot", kicker: "Basically in", head: fresh(["Already Shopping for Ring Sizes", "Punching the Ticket", "Clear the Calendar"], lock.length), oid: lock[0].oid,
       body: `${lock.map(r => teamName(r.oid)).join(" and ")} made the playoffs in over 99.5% of simulations. Not mathematically clinched, but go ahead and gloat.`, stat: "" });
     const dead = s.standings.filter(r => odds.res[r.rid].playoff <= 0.005);
-    if (dead.length) race.push({ tone: "cold", kicker: "Basically out", head: pick(["Now Competing for the 1.01", "It's a Rebuild, Actually", "See You in the Rookie Draft"], dead.length), oid: dead[0].oid,
+    if (dead.length) race.push({ tone: "cold", kicker: "Basically out", head: fresh(["Now Competing for the 1.01", "It's a Rebuild, Actually", "See You in the Rookie Draft"], dead.length), oid: dead[0].oid,
       body: `${dead.map(r => teamName(r.oid)).join(" and ")} made the playoffs in fewer than 1 in 200 simulations. In dynasty we call that "accumulating assets."`, stat: "" });
   }
   const lastChamp = done[done.length - 1];
@@ -976,7 +1118,7 @@ function buildStories(gd, odds) {
     const when = x => `${x.g.year}, week ${x.g.week}`;
     fame.push({ tone: "hot", kicker: "Record: high score", head: hi.g.year === s.year ? "Fresh League Record" : `${fmt(hi.me.pts)} Points. One Week.`, oid: hi.me.oid,
       body: `${teamName(hi.me.oid)} hung ${fmt(hi.me.pts)} on ${teamName(hi.op.oid)}. ${teamName(hi.op.oid)} is still processing it.`, stat: `${when(hi)} · ${fmt(hi.me.pts)}-${fmt(hi.op.pts)}` });
-    fame.push({ tone: "cold", kicker: "Record: blowout", head: pick(["Not a Game, a Crime Scene", "The Mercy Rule Was Not Invoked", "Witnesses Are Still Shaken"], blow.g.year + blow.me.oid), oid: blow.me.oid,
+    fame.push({ tone: "cold", kicker: "Record: blowout", head: fresh(["Not a Game, a Crime Scene", "The Mercy Rule Was Not Invoked", "Witnesses Are Still Shaken"], blow.g.year + blow.me.oid), oid: blow.me.oid,
       body: `${teamName(blow.me.oid)} beat ${teamName(blow.op.oid)} by ${fmt(blow.me.pts - blow.op.pts)}. Thoughts and prayers.`, stat: `${when(blow)} · ${fmt(blow.me.pts)}-${fmt(blow.op.pts)}` });
     if (heart) fame.push({ tone: "cold", kicker: "Record: heartbreak", head: "Most Points in a Loss", oid: heart.me.oid,
       body: `${teamName(heart.me.oid)} scored ${fmt(heart.me.pts)} and lost anyway. Some weeks the universe just says no.`, stat: `${when(heart)} · lost to ${teamName(heart.op.oid)} by ${fmt(heart.op.pts - heart.me.pts)}` });
@@ -995,7 +1137,7 @@ function buildStories(gd, odds) {
     const got = r => [...Object.entries(t.adds || {}).filter(([, rid]) => rid === r).map(([pid]) => pname(pid)), ...(t.draft_picks || []).filter(p => p.owner_id === r).map(p => `${p.season} R${p.round} pick`)];
     const counts = {}; for (const tr of trades) for (const r of tr.roster_ids || []) counts[s.ownerOf[r]] = (counts[s.ownerOf[r]] || 0) + 1;
     const [busy, nb] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    office.push({ tone: "hot", kicker: `Latest trade · week ${t.week}`, head: pick(["Both Sides Think They Won", "Somebody Got Fleeced (TBD Who)", "The Phones Are Ringing"], t.week + (t.roster_ids || []).join()), oid: s.ownerOf[(t.roster_ids || [])[0]],
+    office.push({ tone: "hot", kicker: `Latest trade · week ${t.week}`, head: fresh(["Both Sides Think They Won", "Somebody Got Fleeced (TBD Who)", "The Phones Are Ringing"], t.week + (t.roster_ids || []).join()), oid: s.ownerOf[(t.roster_ids || [])[0]],
       list: (t.roster_ids || []).map(r => [teamName(s.ownerOf[r]), got(r).join(", ") || "vibes"]),
       stat: `${plural(trades.length, "trade")} this season${nb >= 2 ? ` · ${teamName(busy)} can't stop dialing (${nb})` : ""}` });
   }
@@ -1268,13 +1410,8 @@ function viewDynasty() {
   </tbody></table></div>`;
   const legend = vals ? `<p class="note">${Object.entries(posCol).map(([p, c]) => `<span class="chip" style="background:${c}"></span>${p}`).join(" &nbsp; ")} · Values from FantasyCalc's dynasty trade market, matched to your league's QB format and scoring. Picks counted from Sleeper's traded-pick ledger for the next three rookie drafts (${rookieRounds} rounds).</p>`
     : `<p class="note">Dynasty trade values couldn't be loaded, so teams are sorted by age. Picks counted from Sleeper's traded-pick ledger.</p>`;
-  // wire buzz
-  const rostered = new Set(s.raw.rosters.flatMap(r => r.players || []));
-  const buzz = (STATE.trending || []).filter(t => !rostered.has(t.player_id) && M.players[t.player_id]).slice(0, 8);
-  const buzzHTML = buzz.length ? `<section class="panel"><h3>Waiver Wire Buzz</h3><p class="note" style="margin-top:-6px">Most-added players across Sleeper in the last 24 hours who are still free agents in your league.</p>
-    <div class="tbl-wrap" style="border:0"><table><tbody>${buzz.map(t => { const p = M.players[t.player_id]; return `<tr><td style="font-weight:600">${esc(p.n)}</td><td class="muted">${esc(p.pos)} · ${esc(p.team || "FA")}${p.age ? ` · ${p.age} yo` : ""}${p.inj ? ` · ${esc(p.inj)}` : ""}</td><td class="n">${t.count.toLocaleString()} adds</td></tr>`; }).join("")}</tbody></table></div></section>` : "";
   return `<div class="section-h"><div><div class="eyebrow">Built for the long game</div><h2>Dynasty Outlook</h2></div></div>
-    <div class="stack">${table}${legend}${buzzHTML}</div>`;
+    <div class="stack">${table}${legend}</div>`;
 }
 
 
@@ -1740,6 +1877,7 @@ function lockAgain() { try { localStorage.removeItem("gate"); sessionStorage.rem
 /* ---------------- app shell ---------------- */
 function render() {
   const app = $("#app");
+  USED.clear();
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.v === STATE.view)));
   try {
     app.innerHTML = { gameday: viewGameday, stories: viewStories, outlook: viewOutlook, history: viewHistory, dynasty: viewDynasty, franchises: viewFranchises, draft: viewDraft }[STATE.view]();
@@ -1840,7 +1978,6 @@ async function boot() {
   route();
   // secondary sources in the background
   loadValues(s).then(v => { STATE.values = v; if (["dynasty", "franchises"].includes(STATE.view)) render(); else renderFooter(); });
-  loadTrending().then(t => { STATE.trending = t; if (STATE.view === "dynasty") render(); });
   window.scrollTo(0, 0);
 }
 
