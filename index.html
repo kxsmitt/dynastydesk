@@ -1743,6 +1743,56 @@ function draftProjection(season, gd) {
   return { teams: out, T, pt, nonPO: T - pt, final: N === 1, weeksLeft: remain.length };
 }
 
+/* ---------------- draft returns: starter points each franchise got from its own rookie picks ---------------- */
+function draftReturns() {
+  // points a player scored while in a franchise's starting lineup, keyed owner -> player
+  const started = {};
+  for (const s of M.seasons) for (const [wk, entries] of Object.entries(s.raw.weeks)) {
+    if (+wk > s.lastDone) continue;
+    for (const e of entries || []) {
+      if (e.matchup_id == null) continue;
+      const oid = s.ownerOf[e.roster_id], st = e.starters || [];
+      st.forEach((pid, i) => { if (!pid || pid === "0") return; const p = +(e.starters_points?.[i] ?? e.players_points?.[pid] ?? 0) || 0; const key = `${oid}|${pid}`, row = (started[key] ||= {}); row[s.year] = (row[s.year] || 0) + p; });
+    }
+  }
+  const cur = M.cur, curOwner = {};
+  for (const r of cur.raw.rosters) for (const pid of r.players || []) curOwner[pid] = cur.ownerOf[r.roster_id];
+  const picks = [];
+  for (const s of M.seasons) for (const d of s.raw.drafts) {
+    if (d.status !== "complete" || (d.settings?.rounds || 99) > 6) continue;   // rookie drafts only; the startup was on Yahoo
+    const T = d.settings?.teams || s.raw.rosters.length;
+    for (const p of s.raw.draftPicks[d.draft_id] || []) {
+      const oid = M.owners[p.picked_by] ? p.picked_by : s.ownerOf[p.roster_id];
+      if (!oid || !p.player_id) continue;
+      const nm = p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id);
+      picks.push({ oid, pid: p.player_id, name: nm, pos: p.metadata?.position || ppos(p.player_id), season: d.season, label: pickLabel(p.round, p.draft_slot || (((p.pick_no - 1) % T) + 1)), pts: sum(Object.entries(started[`${oid}|${p.player_id}`] || {}).filter(([yr]) => +yr >= +d.season).map(([, v]) => v)), kept: curOwner[p.player_id] === oid });
+    }
+  }
+  const teams = {};
+  for (const p of picks) { const t = teams[p.oid] ||= { oid: p.oid, pts: 0, n: 0, hits: 0, best: null, list: [] }; t.pts += p.pts; t.n++; if (p.pts > 0) t.hits++; t.list.push(p); if (!t.best || p.pts > t.best.pts) t.best = p; }
+  return { teams: Object.values(teams).sort((a, b) => b.pts - a.pts), picks: [...picks].sort((a, b) => b.pts - a.pts) };
+}
+
+function returnsSection() {
+  const R = draftReturns();
+  if (!R.teams.length) return "";
+  const max = Math.max(1, ...R.teams.map(t => t.pts));
+  const rows = R.teams.map((t, i) => `<tr><td class="n">${i + 1}</td><td>${teamCell(t.oid)}</td>
+    <td style="min-width:200px"><div class="rbar" style="height:22px"><i style="width:${t.pts / max * 100}%;background:${color(t.oid)}"></i><b style="line-height:22px">${fmt(t.pts)}</b></div></td>
+    <td class="n">${t.n}</td><td class="n">${t.hits}</td><td class="n">${fmt(t.pts / Math.max(1, t.n))}</td>
+    <td style="white-space:normal;min-width:180px;font-size:13px">${t.best && t.best.pts > 0 ? `<b>${esc(t.best.name)}</b> <span class="muted">${esc(t.best.season)} ${esc(t.best.label)} · ${fmt(t.best.pts)} pts</span>` : '<span class="muted">Still waiting on the first point</span>'}</td></tr>`).join("");
+  const top = R.teams[0], bot = R.teams[R.teams.length - 1];
+  const topQ = fresh([(T) => `${T} drafts like they've seen next season's box scores.`, (T) => `${T}'s scouting department deserves a raise.`, (T) => `${T} is turning rookie picks into actual points. Revolutionary.`], top.oid + "rt", teamName(top.oid));
+  if (top.pts <= 0) return section("returns", "Draft Returns", "Points each franchise has gotten from its own rookie picks", `<div class="panel"><p class="tquip" style="margin:0">No rookie pick has scored a point in its drafter's starting lineup yet. Patience is a virtue, allegedly.</p></div>`);
+  const botQ = bot !== top ? fresh([(T, x) => `${T}'s draftees have produced ${x} points for them. The scouting department has been notified.`, (T, x) => `${T}: ${x} points from their own picks. The draft board might have been upside down.`, (T, x) => `${T} is ${x} points deep on draft returns. Thoughts and prayers to the war room.`], bot.oid + "rb", teamName(bot.oid), fmt(bot.pts)) : "";
+  const best = R.picks.filter(p => p.pts > 0).slice(0, 8);
+  const bestHTML = best.length ? `<h4 class="mini" style="margin-top:22px">Most productive draftees</h4><div class="tbl-wrap"><table><thead><tr><th>Player</th><th>Drafted by</th><th>Pick</th><th class="n">Points for them</th><th>Status</th></tr></thead><tbody>
+    ${best.map(p => `<tr><td style="font-weight:600">${esc(p.name)} <span class="muted" style="font-size:12px">${esc(p.pos)}</span></td><td>${esc(teamName(p.oid))}</td><td class="mono">${esc(p.season)} ${esc(p.label)}</td><td class="n">${fmt(p.pts)}</td><td>${p.kept ? '<span class="pill in">Still on roster</span>' : '<span class="pill">Moved on</span>'}</td></tr>`).join("")}</tbody></table></div>` : "";
+  return section("returns", "Draft Returns", "Points each franchise has gotten from its own rookie picks", `<div class="tbl-wrap"><table><thead><tr><th class="n">#</th><th>Team</th><th>Starter points from own picks</th><th class="n">Picks</th><th class="n">Hits</th><th class="n">Pts / pick</th><th>Best pick</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Only points scored in the drafting team's starting lineup count. Once a player is traded or cut, his points stop counting for the team that drafted him. A "hit" is any pick that has scored at least one point for its drafter. Rookie drafts on Sleeper only.</p>
+    <p class="tquip" style="margin:6px 0 0">${esc(topQ)}${botQ ? " " + esc(botQ) : ""}</p>${bestHTML}`);
+}
+
 /* ---------------- draft tab ---------------- */
 function pickLabel(round, slot) { return `${round}.${String(slot).padStart(2, "0")}`; }
 
@@ -1842,7 +1892,8 @@ function viewDraft() {
     out.push(section("past", "Draft Archive", "Every rookie draft since the move to Sleeper. The startup draft was held on Yahoo.", `<div class="jump">${tabs}</div>${verdict}${board}<p class="note">Points per game are from the current season, while the player was on a fantasy roster.</p>`));
   }
 
-  const jumps = [["order", "Draft order"], ["race101", "1.01 race"], ["capital", "Pick holdings"], ["past", "Archive"]]
+  out.push(returnsSection());
+  const jumps = [["order", "Draft order"], ["race101", "1.01 race"], ["capital", "Pick holdings"], ["past", "Archive"], ["returns", "Draft returns"]]
     .filter(([id]) => out.some(h => h && h.includes(`id="sec-${id}"`))).map(([id, l]) => `<button class="btn" type="button" data-jump="sec-${id}">${l}</button>`).join("");
   return `<div class="section-h"><div><div class="eyebrow">${draftYear} rookie draft · ${plural(rounds, "round")}</div><h2>The Draft Room</h2></div><div class="jump">${jumps}</div></div>
     <div class="stack" style="gap:36px">${out.filter(Boolean).join("")}</div>`;
