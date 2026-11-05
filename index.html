@@ -445,6 +445,30 @@ a.wk{text-decoration:none;color:inherit;text-align:center;display:inline-block}
   .perf{grid-template-columns:16px 32px minmax(0,1fr) 62px}
   .perf .perf-bar,.perf .perf-proj{display:none}
 }
+/* trade review */
+.trades{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,460px),1fr));gap:14px}
+.trade{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.trade-h{display:flex;gap:12px;align-items:center}
+.trade-h h4{font:800 22px/1.05 var(--display);text-transform:uppercase;margin:4px 0 0;text-wrap:balance}
+.trank{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;background:var(--fg);color:var(--bg);font-weight:600}
+.tsides{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.tside{border:1px solid var(--line);border-top:4px solid var(--team);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.tside.won{background:color-mix(in srgb,var(--win) 9%,transparent)}
+.tside-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tside ul{list-style:none;margin:0;padding:0;font-size:13.5px}
+.tside li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)}
+.tside li>span:first-child{min-width:0}
+.tside-t{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;padding-top:4px;font-size:12px;color:var(--muted)}
+.tside-t b{font-size:18px;color:var(--fg)}
+.pend{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.grade{font:800 18px/1 var(--display);min-width:38px;text-align:center;padding:4px 6px;border-radius:6px;border:2px solid var(--muted);color:var(--muted)}
+.grade.g-Ap,.grade.g-A{border-color:var(--win);color:var(--win)}
+.grade.g-B{border-color:color-mix(in srgb,var(--win) 60%,var(--muted));color:color-mix(in srgb,var(--win) 60%,var(--muted))}
+.grade.g-D,.grade.g-F{border-color:var(--loss);color:var(--loss)}
+.trade .tquip{margin:0;font-size:15px}
+.tr-row{grid-template-columns:minmax(90px,150px) 1fr 50px 100px}
+.tr-rec{font-size:11px;text-align:right}
+@media (max-width:640px){.tr-row{grid-template-columns:minmax(0,1fr) 46px}.tr-row .lbar{grid-column:1/-1;grid-row:2}.tr-rec{display:none}}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -600,7 +624,9 @@ async function loadSeasonRaw(lg, nfl) {
   let draftPicks = {};
   if (drafts && drafts.length) {
     await pool(drafts.filter(d => d.status === "complete").map(d => async () => {
-      draftPicks[d.draft_id] = await getJSON(`${API}/draft/${d.draft_id}/picks`, { ttl: FOREVER, optional: true }) || [];
+      const [picks, det] = await Promise.all([getJSON(`${API}/draft/${d.draft_id}/picks`, { ttl: FOREVER, optional: true }), d.slot_to_roster_id ? null : getJSON(`${API}/draft/${d.draft_id}`, { ttl: FOREVER, optional: true })]);
+      draftPicks[d.draft_id] = picks || [];
+      if (det?.slot_to_roster_id) d.slot_to_roster_id = det.slot_to_roster_id;
     }), 3);
   }
   return { league: lg, year, users: users || [], rosters: rosters || [], wb: wb || [], lb: lb || [], traded: traded || [], drafts: drafts || [], draftPicks, weeks, tx };
@@ -1539,8 +1565,8 @@ function viewDynasty() {
   </tbody></table></div>`;
   const legend = vals ? `<p class="note">${Object.entries(posCol).map(([p, c]) => `<span class="chip" style="background:${c}"></span>${p}`).join(" &nbsp; ")} · Values from FantasyCalc's dynasty trade market, matched to your league's QB format and scoring. Picks counted from Sleeper's traded-pick ledger for the next three rookie drafts (${rookieRounds} rounds).</p>`
     : `<p class="note">Dynasty trade values couldn't be loaded, so teams are sorted by age. Picks counted from Sleeper's traded-pick ledger.</p>`;
-  return `<div class="section-h"><div><div class="eyebrow">Built for the long game</div><h2>Dynasty Outlook</h2></div></div>
-    <div class="stack">${table}${legend}</div>`;
+  return `<div class="section-h"><div><div class="eyebrow">Built for the long game</div><h2>Dynasty Outlook</h2></div><div class="jump"><button class="btn" type="button" data-jump="sec-trades">Trade review</button></div></div>
+    <div class="stack" style="gap:36px"><div class="stack">${table}${legend}</div>${tradeSection()}</div>`;
 }
 
 
@@ -2014,6 +2040,127 @@ function recapTeaser() {
   return `<a class="teaser" href="#recap-${last}"><div><div class="eyebrow">Week ${last} in review</div><h3>The Week ${last} Tape</h3>
     <ul><li>High score: <b>${esc(teamName(hi.oid))}</b>, ${fmt(hi.pts)}</li><li>Blowout: <b>${esc(teamName(bw.oid))}</b> by ${fmt(bw.pts - bL.pts)} over ${esc(teamName(bL.oid))}</li>${cl !== bl ? `<li>Closest: <b>${esc(teamName(cw.oid))}</b> by ${fmt(cw.pts - cL.pts, 2)} over ${esc(teamName(cL.oid))}</li>` : ""}</ul></div>
     <span class="teaser-cta">Swing charts, upsets and awards <span aria-hidden="true">→</span></span></a>`;
+}
+
+/* ---------------- trade review ----------------
+   Each side of a trade is credited with the starter points it got from what it received:
+   players (while on that roster, from the trade week on) and rookie picks (the player drafted with
+   the pick, if this team made the selection). Unused future picks are "pending". */
+function tradeReview() {
+  const log = {};
+  for (const s of M.seasons) for (const [wk, entries] of Object.entries(s.raw.weeks)) {
+    if (+wk > s.lastDone) continue;
+    for (const e of entries || []) {
+      if (e.matchup_id == null) continue;
+      const oid = s.ownerOf[e.roster_id];
+      (e.starters || []).forEach((pid, i) => { if (!pid || pid === "0") return; (log[`${oid}|${pid}`] ||= []).push({ y: s.year, w: +wk, pts: +(e.starters_points?.[i] ?? e.players_points?.[pid] ?? 0) || 0 }); });
+    }
+  }
+  const after = (y, w) => x => x.y > y || (x.y === y && x.w >= w);
+  const ptsAfter = (oid, pid, y, w) => sum((log[`${oid}|${pid}`] || []).filter(after(y, w)).map(x => x.pts));
+  const weeksAll = M.seasons.flatMap(s => range(1, Math.min(18, s.lastDone === 99 ? 18 : s.lastDone)).filter(w => (s.raw.weeks[w] || []).some(e => ptsOf(e) > 0)).map(w => ({ y: s.year, w })));
+  const weeksAfter = (y, w) => weeksAll.filter(after(y, w)).length;
+  const rookie = {};
+  for (const s of M.seasons) for (const d of s.raw.drafts) if (d.status === "complete" && (d.settings?.rounds || 99) <= 6) rookie[String(d.season)] = { d, s, picks: s.raw.draftPicks[d.draft_id] || [] };
+  const resolve = pk => {
+    const D = rookie[String(pk.season)]; if (!D) return null;
+    let slot = null;
+    if (D.d.slot_to_roster_id) { const k = Object.keys(D.d.slot_to_roster_id).find(k => D.d.slot_to_roster_id[k] === pk.roster_id); if (k) slot = +k; }
+    if (!slot && D.d.draft_order) { const uid = D.s.raw.rosters.find(r => r.roster_id === pk.roster_id)?.owner_id; if (uid && D.d.draft_order[uid]) slot = +D.d.draft_order[uid]; }
+    const p = slot ? D.picks.find(x => x.round === pk.round && x.draft_slot === slot) : null;
+    return { D, p };
+  };
+  const trades = [];
+  for (const s of M.seasons) for (const [wk, list] of Object.entries(s.raw.tx)) for (const t of list || []) {
+    if (t.type !== "trade" || t.status !== "complete") continue;
+    const sides = (t.roster_ids || []).map(rid => {
+      const oid = s.ownerOf[rid];
+      const players = Object.entries(t.adds || {}).filter(([, r]) => r === rid).map(([pid]) => ({ name: pname(pid), pos: ppos(pid), pts: ptsAfter(oid, pid, s.year, +wk) }));
+      const picks = (t.draft_picks || []).filter(p => p.owner_id === rid).map(pk => {
+        const label = `${pk.season} R${pk.round}`, r = resolve(pk);
+        if (!r) return { label, round: pk.round, pending: true };
+        if (!r.p) return { label, round: pk.round, pts: 0, note: "used, player unknown" };
+        const drafter = M.owners[r.p.picked_by] ? r.p.picked_by : r.D.s.ownerOf[r.p.roster_id];
+        const nm = r.p.metadata?.first_name ? `${r.p.metadata.first_name} ${r.p.metadata.last_name}` : pname(r.p.player_id);
+        return { label, round: pk.round, player: nm, pts: drafter === oid ? ptsAfter(oid, r.p.player_id, +r.D.d.season, 1) : 0, flipped: drafter !== oid };
+      });
+      const total = sum(players.map(p => p.pts)) + sum(picks.map(p => p.pts || 0));
+      return { rid, oid, players, picks, total, pending: picks.filter(p => p.pending), faab: sum((t.waiver_budget || []).filter(b => b.receiver === rid).map(b => b.amount || 0)) };
+    }).filter(x => x.oid);
+    if (sides.length < 2) continue;
+    const byTotal = [...sides].sort((a, b) => b.total - a.total);
+    trades.push({ id: t.transaction_id || `${s.year}-${wk}-${trades.length}`, year: s.year, week: +wk, sides, age: weeksAfter(s.year, +wk), win: byTotal[0], lose: byTotal[byTotal.length - 1], margin: byTotal[0].total - byTotal[byTotal.length - 1].total, floor: byTotal[byTotal.length - 1].total, sum: sum(sides.map(x => x.total)) });
+  }
+  const settled = trades.filter(t => t.age >= 3 && !t.lose.pending.some(p => p.round <= 2));
+  const worst = [...settled].filter(t => t.margin > 0).sort((a, b) => b.margin - a.margin).slice(0, 5);
+  const best = [...settled].filter(t => !worst.includes(t) && t.floor > 0).sort((a, b) => b.floor - a.floor || b.sum - a.sum).slice(0, 5);
+  const jury = trades.filter(t => !settled.includes(t)).sort((a, b) => b.year - a.year || b.week - a.week).slice(0, 4);
+  const teams = {};
+  for (const t of settled) for (const sd of t.sides) {
+    const others = t.sides.filter(x => x !== sd), net = sd.total - mean(others.map(x => x.total));
+    const T = teams[sd.oid] ||= { oid: sd.oid, n: 0, net: 0, w: 0, l: 0, best: null };
+    T.n++; T.net += net; if (net > 0) T.w++; else if (net < 0) T.l++;
+    if (!T.best || net > T.best.net) T.best = { net, t };
+  }
+  return { trades, worst, best, jury, teams: Object.values(teams).sort((a, b) => b.net - a.net) };
+}
+
+function tradeGrade(sd, t) {
+  if (t.sum <= 0) return "INC";
+  const share = sd.total / t.sum, f = share * t.sides.length / 2;   // 0.5 share in a 2-team deal = even
+  return f >= 0.8 ? "A+" : f >= 0.7 ? "A" : f >= 0.6 ? "B" : f >= 0.4 ? "C" : f >= 0.3 ? "D" : "F";
+}
+const T_WORST = [
+  (W, L) => `${W} Fleeced ${L}`, (W, L) => `Daylight Robbery`, (W, L) => `${L} Wants a Do-Over`, (W, L) => `Somebody Call the Commissioner`, (W, L) => `${W} Pulled a Fast One`, (W, L) => `Lopsided Doesn't Cover It`
+];
+const T_WORST_Q = [
+  (W, L, m) => `${W} has gotten ${m} more starter points out of this. ${L} would like to speak to a manager.`,
+  (W, L, m) => `A ${m}-point gap and counting. ${L} still insists it was "a value play."`,
+  (W, L, m) => `${m} points separate the two sides. ${W} sends a thank-you card every Christmas.`,
+  (W, L, m) => `${L} is down ${m} on this one. The group chat has not let it go.`,
+  (W, L, m) => `${W} up ${m}. Veto requests were filed and denied.`
+];
+const T_BEST = [() => `Everybody Wins`, () => `A Rare Win-Win`, () => `Both Sides Can Brag`, () => `Fair and Square`, () => `The Handshake Deal`];
+const T_BEST_Q = [
+  (A, B) => `${A} and ${B} both got real starters out of this. Diplomacy lives.`,
+  (A, B) => `Real production on both sides. ${A} and ${B} should run the trade seminar.`,
+  (A, B) => `Nobody got fleeced. ${A} and ${B} are a model for the league.`,
+  (A, B) => `${A} and ${B} both walked away happy. Suspicious, but we'll allow it.`,
+  (A, B) => `Proof that trades don't have to end friendships. ${A} and ${B} are still talking.`
+];
+
+function tradeCard(t, kind, i) {
+  const W = teamName(t.win.oid), L = teamName(t.lose.oid);
+  const head = kind === "worst" ? fresh(T_WORST, t.id + "h", W, L) : kind === "best" ? fresh(T_BEST, t.id + "h") : t.sides.map(x => teamName(x.oid)).join(" × ");
+  const quip = kind === "worst" ? fresh(T_WORST_Q, t.id + "q", W, L, fmt(t.margin)) : kind === "best" ? fresh(T_BEST_Q, t.id + "q", teamName(t.sides[0].oid), teamName(t.sides[1].oid)) : (t.age < 3 ? `Only ${plural(t.age, "week")} of data so far.` : `Waiting on ${t.lose.pending.map(p => p.label).join(", ")}.`);
+  const side = sd => {
+    const g = tradeGrade(sd, t), winner = kind !== "jury" && sd === t.win && t.margin > 0;
+    const items = [...sd.players.map(p => `<li><span>${esc(p.name)} <span class="muted">${esc(p.pos)}</span></span><span class="mono">${fmt(p.pts)}</span></li>`),
+      ...sd.picks.map(p => `<li><span>${esc(p.label)}${p.player ? ` <span class="muted">→ ${esc(p.player)}${p.flipped ? " (flipped)" : ""}</span>` : p.pending ? ' <span class="pend">pending</span>' : p.note ? ` <span class="muted">${esc(p.note)}</span>` : ""}</span><span class="mono">${p.pending ? "–" : fmt(p.pts)}</span></li>`),
+      ...(sd.faab ? [`<li><span>$${sd.faab} FAAB</span><span class="mono">–</span></li>`] : [])];
+    return `<div class="tside ${winner ? "won" : ""}" style="--team:${color(sd.oid)}"><div class="tside-h"><span class="fn">${esc(teamName(sd.oid))}</span><span class="grade g-${g.replace("+", "p")}">${g}</span></div><div class="muted" style="font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em">Received</div><ul>${items.join("") || '<li class="muted">Nothing listed</li>'}</ul><div class="tside-t"><span>Starter points</span><b class="mono">${fmt(sd.total)}</b></div></div>`;
+  };
+  return `<article class="trade">
+    <div class="trade-h">${kind !== "jury" ? `<span class="trank mono">${i + 1}</span>` : ""}<div style="min-width:0"><div class="eyebrow">${t.year} · Week ${t.week}</div><h4>${esc(head)}</h4></div></div>
+    <div class="tsides">${t.sides.map(side).join("")}</div>
+    <p class="tquip">${esc(quip)}</p></article>`;
+}
+
+function tradeSection() {
+  const R = tradeReview();
+  if (!R.trades.length) return section("trades", "Trade Review", "", `<div class="panel"><p class="tquip" style="margin:0">Not a single trade on record. Either everyone is a genius or nobody answers their DMs.</p></div>`);
+  const list = (arr, kind, empty) => arr.length ? `<div class="trades">${arr.map((t, i) => tradeCard(t, kind, i)).join("")}</div>` : `<p class="muted">${empty}</p>`;
+  const maxNet = Math.max(1, ...R.teams.map(x => Math.abs(x.net)));
+  const card = R.teams.length ? `<div class="panel"><h4 class="mini">Trade report card</h4><p class="note" style="margin:-4px 0 10px">Net starter points from every settled trade: what each team got minus what it gave up.</p>
+    <div class="luckrows">${R.teams.map(x => { const w = Math.abs(x.net) / maxNet * 50; return `<div class="luckrow tr-row"><span class="fn">${esc(teamName(x.oid))}</span><span class="lbar"><i style="${x.net >= 0 ? `left:50%;width:${w}%;background:var(--win)` : `right:50%;width:${w}%;background:var(--loss)`}"></i></span><span class="mono lv">${x.net >= 0 ? "+" : "−"}${fmt(Math.abs(x.net), 0)}</span><span class="mono muted tr-rec">${x.w}-${x.l} in ${plural(x.n, "deal")}</span></div>`; }).join("")}</div></div>` : "";
+  return section("trades", "Trade Review", `${plural(R.trades.length, "trade")} in league history, graded on what actually happened`,
+    `<div class="stack" style="gap:28px">
+      <div><h4 class="mini">The 5 worst trades</h4><p class="note" style="margin:-4px 0 12px">The most lopsided deals, ranked by how many more starter points the winner got.</p>${list(R.worst, "worst", "No lopsided trades yet. Give it time.")}</div>
+      <div><h4 class="mini">The 5 best trades</h4><p class="note" style="margin:-4px 0 12px">Deals where both sides got real production, ranked by the smaller side's haul.</p>${list(R.best, "best", "No trade has paid off for both sides yet.")}</div>
+      ${card}
+      ${R.jury.length ? `<div><h4 class="mini">Jury's still out</h4><p class="note" style="margin:-4px 0 12px">Too recent, or still waiting on draft picks that haven't been used.</p>${list(R.jury, "jury", "")}</div>` : ""}
+      <p class="note">Each side is credited with starter points from what it received: players while they stayed on that roster, and rookie picks through the player drafted with them. Bench points don't count. Grades compare each side's share of the total. Trades need 3 weeks of games before they're ranked, and deals still waiting on a first- or second-round pick stay in "Jury's still out."</p>
+    </div>`);
 }
 
 /* ---------------- draft pick ledger (shared) ---------------- */
