@@ -167,6 +167,65 @@ svg text{fill:var(--muted);font:500 11px var(--mono)}
   .tname{white-space:normal;font-size:18px}
 }
 .proj-inline{display:none}
+
+/* storylines layout */
+.jump{display:flex;gap:6px;flex-wrap:wrap}
+.jump .btn{font-size:12px;padding:5px 10px}
+.sect{display:flex;flex-direction:column;gap:14px;scroll-margin-top:130px}
+.sect-h{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap;border-bottom:2px solid var(--fg);padding-bottom:6px}
+.sect-h h3{margin:0;font-size:28px}
+.sect-h p{margin:0;font:500 13px/1.3 var(--mono);color:var(--muted)}
+.story{border-top:3px solid var(--team,var(--accent))}
+.story h4{font-size:21px}
+.story p{font-size:15.5px}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:14px}
+dl.kv dt{font-weight:600}
+dl.kv dd{margin:0;color:var(--muted)}
+h4.mini{font:800 18px/1 var(--display);text-transform:uppercase;margin:0 0 10px;letter-spacing:.03em}
+.slate{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.slate li{display:grid;grid-template-columns:minmax(0,1.1fr) auto minmax(0,1.6fr);gap:4px 16px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+.slate li:last-child{border-bottom:0}
+.slate .vs{font-weight:600;min-width:0}
+.slate .odds{font-size:12px;color:var(--muted);white-space:nowrap}
+.slate .q{font:400 15px/1.4 var(--story);min-width:0}
+.formrows,.luckrows{display:flex;flex-direction:column}
+.formrow{display:grid;grid-template-columns:12px minmax(90px,150px) auto minmax(0,1fr);gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.formrow:last-child,.luckrow:last-child{border-bottom:0}
+.fn{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fq{font:italic 400 14px/1.3 var(--story);color:var(--muted);min-width:0}
+.res{display:flex;gap:3px}
+.r{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;font:600 10px/1 var(--mono);font-style:normal;color:var(--bg);background:var(--muted)}
+.r.W{background:var(--win)}
+.r.L{background:var(--loss)}
+.luckrow{display:grid;grid-template-columns:minmax(90px,150px) 1fr 44px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.lbar{position:relative;height:12px;background:linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat}
+.lbar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.lv{font-size:12px;text-align:right}
+@media (max-width:640px){
+  .slate li{grid-template-columns:minmax(0,1fr) auto}
+  .slate .q{grid-column:1/-1}
+  .formrow{grid-template-columns:12px minmax(0,1fr) auto}
+  .fq{grid-column:2/-1}
+}
+
+/* landing gate */
+body.locked .top, body.locked footer{display:none}
+.gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
+.gate-card{width:100%;max-width:520px;display:flex;flex-direction:column;gap:18px}
+.gate .stripes{height:10px;background:repeating-linear-gradient(90deg,var(--accent) 0 28px,transparent 28px 36px);opacity:.9}
+.gate h1{font:900 clamp(48px,11vw,88px)/.88 var(--display);text-transform:uppercase;margin:0;text-wrap:balance;letter-spacing:.005em}
+.gate .tag{font:italic 400 19px/1.4 var(--story);color:var(--muted);margin:0;min-height:2.8em}
+.gate form{display:flex;gap:8px;flex-wrap:wrap}
+.gate input[type=password]{flex:1 1 220px;min-width:0;padding:13px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:500 16px var(--mono)}
+.gate input[type=password]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.gate .go{border:0;border-radius:8px;padding:13px 18px;background:var(--accent);color:var(--bg);font:800 18px/1 var(--display);text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.gate .go:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.gate .remember{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.gate .msg{min-height:1.4em;margin:0;font:500 14px/1.4 var(--body);color:var(--loss)}
+.gate .fine{font:500 11px/1.4 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+@keyframes shake{0%,100%{transform:none}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.gate .shake{animation:shake .35s}
+@media (prefers-reduced-motion:reduce){.gate .shake{animation:none}}
 @media (prefers-reduced-motion:reduce){.dot.live{animation:none}}
 </style>
 </head>
@@ -194,7 +253,7 @@ svg text{fill:var(--muted);font:500 11px var(--mono)}
   <main id="app"><div class="loader"><div class="big">Warming up</div><p class="muted" id="progress">Connecting to Sleeper…</p></div></main>
   <footer>
     <div class="src" id="sources"></div>
-    <div><span id="updated"></span> · <button class="btn" id="change-league" type="button">Change league</button></div>
+    <div><span id="updated"></span> · <button class="btn" id="change-league" type="button">Change league</button> <button class="btn" id="lock" type="button">Lock</button></div>
   </footer>
 </div>
 
@@ -207,7 +266,10 @@ const CONFIG = {
   LEAGUE_ID: "1312175132118097920",
   POLL_SECONDS: 60,          // live refresh interval during games
   MAX_SEASONS: 15,           // how far back to walk previous_league_id
-  SIMULATIONS: 6000          // Monte Carlo runs for playoff odds
+  SIMULATIONS: 6000,         // Monte Carlo runs for playoff odds
+  // Landing-page password, stored as a SHA-256 hash (current password: "dynasty").
+  // Set to "" to turn the gate off. This keeps casual visitors out; it is not real security.
+  PASSWORD_SHA256: "813cf1ca6462bbb705fb271973c7a98604e6bd7636a2997864f0a63752f65314"
 };
 
 const API = "https://api.sleeper.app/v1";
@@ -481,7 +543,7 @@ function avatarHTML(oid, cls = "av") {
   if (o.avatar) return `<img class="${cls}" src="${esc(o.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`;
   return `<span class="${cls}" style="background:${color(oid)}">${esc((o.team || "?").trim()[0] || "?")}</span>`;
 }
-const teamCell = oid => `<div class="teamcell">${avatarHTML(oid)}<div style="min-width:0"><div style="font-weight:600">${esc(teamName(oid))}</div><div class="muted" style="font-size:12px">${esc(O(oid).name)}</div></div></div>`;
+const teamCell = oid => `<div class="teamcell">${avatarHTML(oid)}<div style="min-width:0"><div style="font-weight:600">${esc(teamName(oid))}</div></div></div>`;
 function pname(pid) {
   const p = M.players[pid];
   if (p) return p.n;
@@ -619,130 +681,172 @@ async function loadTrending() {
 
 /* ---------------- storyline engine ---------------- */
 // Team names are treated as singular ("Tua Lipa leads..."), which reads right for most fantasy names.
-function h2hLine(x, y) {
-  const m = M.h2h[x]?.[y];
-  if (!m || !m.games.length) return { text: `First-ever meeting between ${teamName(x)} and ${teamName(y)}.`, m: null };
-  const last = m.games[m.games.length - 1];
-  const lastW = last.a.pts === last.b.pts ? null : (last.a.pts > last.b.pts ? last.a.oid : last.b.oid);
-  const hiLo = [last.a.pts, last.b.pts].sort((p, q) => q - p);
+// pick() is seeded, so the same situation always gets the same joke (no flicker on refresh).
+const winnerOf = g => g.a.pts === g.b.pts ? null : (g.a.pts > g.b.pts ? g.a.oid : g.b.oid);
+const earlier = (g, yr, wk) => g.year < yr || (g.year === yr && g.week < wk);
+
+// Head-to-head as of a point in time. inclusive=true counts the game played in (yr, wk) itself.
+function h2hAsOf(x, y, yr, wk, inclusive) {
+  const all = M.h2h[x]?.[y]?.games || [];
+  const counted = all.filter(g => earlier(g, yr, wk) || (inclusive && g.year === yr && g.week === wk));
+  const prior = all.filter(g => earlier(g, yr, wk));
+  let w = 0, l = 0, t = 0;
+  for (const g of counted) { const win = winnerOf(g); if (win === x) w++; else if (win === y) l++; else t++; }
   let streak = 0, sOwner;
-  for (let i = m.games.length - 1; i >= 0; i--) {
-    const g = m.games[i]; const w = g.a.pts === g.b.pts ? null : (g.a.pts > g.b.pts ? g.a.oid : g.b.oid);
-    if (sOwner === undefined) sOwner = w;
-    if (w == null || w !== sOwner) break; streak++;
-  }
-  const t = m.t ? "-" + m.t : "";
-  const series = m.w === m.l ? `The all-time series is dead even at ${m.w}-${m.l}${t}.`
-    : `${teamName(m.w > m.l ? x : y)} leads the all-time series ${Math.max(m.w, m.l)}-${Math.min(m.w, m.l)}${t}.`;
-  const lastTxt = lastW ? ` ${teamName(lastW)} took the last meeting ${fmt(hiLo[0])}-${fmt(hiLo[1])}${last.post ? " in the playoffs" : ""} (${last.year}, week ${last.week})` : ` The last meeting ended in a tie (${last.year}, week ${last.week})`;
-  const strk = streak >= 3 && sOwner ? `, part of a ${streak}-game run in this matchup.` : ".";
-  const pg = m.games.some(g => g.bracket === "W") ? " These two have met in the playoffs before." : "";
-  return { text: series + lastTxt + strk + pg, m };
+  for (let i = counted.length - 1; i >= 0; i--) { const win = winnerOf(counted[i]); if (sOwner === undefined) sOwner = win; if (win == null || win !== sOwner) break; streak++; }
+  return { w, l, t, n: counted.length, last: prior[prior.length - 1] || null, streak, sOwner, playoffs: counted.some(g => g.bracket === "W") };
+}
+function seriesText(x, y, h) {
+  if (!h.n) return "";
+  const t = h.t ? "-" + h.t : "";
+  if (h.w === h.l) return `Series tied ${h.w}-${h.l}${t}.`;
+  return `${teamName(h.w > h.l ? x : y)} leads the series ${Math.max(h.w, h.l)}-${Math.min(h.w, h.l)}${t}.`;
+}
+function lastMeetingText(h, label = "Last meeting") {
+  const g = h.last; if (!g) return "";
+  const win = winnerOf(g), hi = Math.max(g.a.pts, g.b.pts), lo = Math.min(g.a.pts, g.b.pts);
+  const when = `${g.year === M.cur.year ? `week ${g.week} this season` : `${g.year}, week ${g.week}`}${g.bracket === "W" ? ", playoffs" : ""}`;
+  return win ? `${label} (${when}): ${teamName(win)} won ${fmt(hi)}-${fmt(lo)}.` : `${label} (${when}) ended in a tie, somehow.`;
+}
+function streakQuip(h) {
+  if (h.streak < 3 || !h.sOwner) return "";
+  return pick([
+    `${teamName(h.sOwner)} has won ${h.streak} straight in this one. Landlord behavior.`,
+    `That's ${h.streak} in a row for ${teamName(h.sOwner)}. At some point it's just rent.`,
+    `${teamName(h.sOwner)} owns this matchup: ${h.streak} straight.`
+  ], h.sOwner + h.streak + h.n);
 }
 
-function matchupBlurb(mu, odds) {
+function previewLead(mu, wk) {
   const { a, b, pA } = mu;
-  const fav = pA >= 0.5 ? a : b, dog = fav === a ? b : a, fp = Math.max(pA, 1 - pA);
+  const fav = pA >= 0.5 ? a : b, dog = fav === a ? b : a, fp = Math.max(pA, 1 - pA), F = teamName(fav.oid), D = teamName(dog.oid);
+  const seed = a.oid + b.oid + wk;
+  return fp > 0.97 ? pick([`${F} has this wrapped. ${D} is playing for pride, and pride isn't a PPR stat.`, `${F} is up ${pct(fp)}. ${D} needs a miracle and a stat correction.`, `Barring a stat correction from the heavens, ${F} takes it.`], seed)
+    : fp > 0.8 ? pick([`${F} is in control at ${pct(fp)}. ${D} needs something weird to happen.`, `${F} is favored at ${pct(fp)}. ${D}'s bench is looking awfully tempting right now.`], seed)
+    : fp > 0.6 ? pick([`${F} has the edge, but ${D} is one big play from ruining someone's night.`, `Lean ${F}, but don't print the shirts yet.`], seed)
+    : pick(["A genuine coin flip. Somebody's heart breaks Monday night.", "Dead even. Set your lineup like your family's honor depends on it.", "Too close to call. Start praying to the kicker gods."], seed);
+}
+function previewBlurb(mu, odds, yr, wk) {
+  const { a, b } = mu;
+  const lead = previewLead(mu, wk);
+  const h = h2hAsOf(a.oid, b.oid, yr, wk, false);
+  const hist = h.n ? [seriesText(a.oid, b.oid, h), lastMeetingText(h), streakQuip(h)].filter(Boolean).join(" ") : "First-ever meeting. No history, no grudges. Yet.";
   let stakes = "";
   if (odds) {
-    const bubble = [a, b].filter(s => { const p = odds.res[s.rid]?.playoff; return p > 0.15 && p < 0.85; });
-    if (bubble.length === 2) stakes = ` Both sides are on the playoff bubble (${pct(odds.res[a.rid].playoff)} and ${pct(odds.res[b.rid].playoff)}), so this one swings the race.`;
-    else if (bubble.length === 1) stakes = ` ${teamName(bubble[0].oid)} sits on the bubble at ${pct(odds.res[bubble[0].rid].playoff)} to make the playoffs.`;
+    const bub = [a, b].filter(s => { const p = odds.res[s.rid]?.playoff; return p > 0.15 && p < 0.85; });
+    if (bub.length === 2) stakes = " Both teams are on the playoff bubble, so this one is basically a play-in game.";
+    else if (bub.length === 1) stakes = ` Big one for ${teamName(bub[0].oid)}, sitting at ${pct(odds.res[bub[0].rid].playoff)} playoff odds.`;
   }
-  const settled = fp > 0.97 ? `${teamName(fav.oid)} has this one locked up.` : fp > 0.8 ? `${teamName(fav.oid)} is in control at ${pct(fp)}.` : fp > 0.6 ? `${teamName(fav.oid)} has the edge, but ${teamName(dog.oid)} is within reach.` : "A genuine coin flip.";
-  return `${settled} ${h2hLine(a.oid, b.oid).text}${stakes}`;
+  return `${lead} ${hist}${stakes}`;
+}
+
+function recapBlurb(mu, yr, wk) {
+  const [w, l] = mu.a.pts >= mu.b.pts ? [mu.a, mu.b] : [mu.b, mu.a];
+  const W = teamName(w.oid), L = teamName(l.oid), m = w.pts - l.pts, seed = w.oid + l.oid + yr + wk;
+  const lead = m === 0 ? "A tie. Everyone loses. Literally." :
+    m < 3 ? pick([`${W} survived by ${fmt(m, 2)}. Cardiac kids.`, `${W} by ${fmt(m, 2)}. ${L} will be thinking about that bench decision until Christmas.`, `${fmt(m, 2)} points. ${L} lost this one on a missed extra point somewhere.`], seed)
+    : m > 40 ? pick([`${W} won by ${fmt(m)}. Mercy rule requested, denied.`, `${W} by ${fmt(m)}. ${L}'s lineup was reported missing.`, `${W} by ${fmt(m)}. That wasn't a matchup, it was a public service announcement.`], seed)
+    : m > 20 ? pick([`${W} handled ${L} by ${fmt(m)}. Not close, not complicated.`, `${W} by ${fmt(m)}. Comfortable enough to check out by the 4 o'clock games.`], seed)
+    : pick([`${W} beat ${L} by ${fmt(m)}.`, `${W} takes it by ${fmt(m)}. A solid, unglamorous W.`], seed);
+  const star = [...w.players].sort((p, q) => q.actual - p.actual)[0];
+  const starTxt = star && star.actual > 0 ? ` ${pname(star.pid)} led the way with ${fmt(star.actual)}.` : "";
+  const h = h2hAsOf(w.oid, l.oid, yr, wk, true);
+  const hist = [h.n > 1 ? seriesText(w.oid, l.oid, h).replace("leads the series", "now leads the series").replace("Series tied", "Series now tied") : "First time these two ever met.", lastMeetingText(h, "Previous meeting"), streakQuip(h)].filter(Boolean).join(" ");
+  return `${lead}${starTxt} ${hist}`;
+}
+
+function formQuip(r) {
+  const res = r.results, last = res[res.length - 1]; let n = 0;
+  for (let i = res.length - 1; i >= 0 && res[i] === last; i--) n++;
+  const s = r.oid + res.length;
+  if (last === "W" && n >= 4) return pick(["Hasn't lost in a month. Suspicious, honestly.", "On a heater. Do not make eye contact.", `${n} straight. Someone check this roster for performance enhancers.`], s);
+  if (last === "W" && n >= 2) return pick(["Trending up.", "Found something.", "Quietly stacking wins."], s);
+  if (last === "L" && n >= 4) return pick(["Freefall. Rookie draft scouting has begun.", `${n} straight Ls. Building character, allegedly.`, "Tanking for the 1.01? Bold strategy."], s);
+  if (last === "L" && n >= 2) return pick(["Wobbling.", "Needs a get-right game.", "Group chat is getting quiet."], s);
+  return pick(["Flipping coins.", "Wildly inconsistent. Very on brand.", "Can't decide who it is yet."], s);
 }
 
 function buildStories(gd, odds) {
-  const S = [], s = M.cur, at = M.allTime;
+  const s = M.cur, at = M.allTime, done = M.seasons.filter(x => x.complete);
   const active = Object.values(M.owners).filter(o => o.active).map(o => o.id);
-  const done = M.seasons.filter(x => x.complete);
   const st = s.standings.filter(r => r.results.length);
+  const race = [], fame = [], office = [];
 
-  if (st.length >= 2) {
-    const luck = st.map(r => { const g = r.apW + r.apL; const exp = g ? r.apW / g * r.results.length : 0; return { r, d: r.w - exp, exp }; }).sort((x, y) => y.d - x.d);
-    const lucky = luck[0], unlucky = luck[luck.length - 1];
-    if (lucky.d >= 1) S.push({ tone: "hot", kicker: "Luck index", head: pick(["Horseshoe Department", "Living a Charmed Life", "The Schedule Gods Smile"], lucky.r.oid + s.year), oid: lucky.r.oid,
-      body: `${teamName(lucky.r.oid)} is ${recStr(lucky.r)}, but playing every team every week it would have about ${fmt(lucky.exp, 1)} wins. That's ${fmt(lucky.d, 1)} wins gifted by the schedule.`, stat: `All-play ${lucky.r.apW}-${lucky.r.apL}` });
-    if (unlucky.d <= -1) S.push({ tone: "cold", kicker: "Luck index", head: pick(["Robbed in Broad Daylight", "Scoring Into the Wind", "Deserves Better"], unlucky.r.oid + s.year), oid: unlucky.r.oid,
-      body: `${teamName(unlucky.r.oid)} has scored like a ${fmt(unlucky.exp, 1)}-win team. The scoreboard says ${unlucky.r.w}. Complaints go to the commissioner.`, stat: `All-play ${unlucky.r.apW}-${unlucky.r.apL} · PF ${fmt(unlucky.r.pf)}` });
-    for (const r of st) {
-      let n = 0; const last = r.results[r.results.length - 1];
-      for (let i = r.results.length - 1; i >= 0 && r.results[i] === last; i--) n++;
-      const since = r.scores[r.scores.length - n]?.week;
-      if (n >= 3 && last === "W") S.push({ tone: "hot", kicker: "Heater", head: `${n} Straight Wins and Counting`, oid: r.oid,
-        body: `${teamName(r.oid)} hasn't lost${since ? ` since before week ${since}` : " in a while"}. The rest of the league has noticed.`, stat: `${recStr(r)} · ${fmt(mean(r.scores.slice(-n).map(x => x.pts)))} ppg during the run` });
-      if (n >= 3 && last === "L") S.push({ tone: "cold", kicker: "Skid", head: pick(["Somebody Check on Them", "The Slide Continues", "Rock Bottom Has a Basement"], r.oid + n), oid: r.oid,
-        body: `${teamName(r.oid)} has dropped ${n} straight. ${n >= 5 ? "At this point the rookie draft is the season." : "There's still time, but not much."}`, stat: recStr(r) });
-    }
-    const pfLead = [...st].sort((a, b) => b.pf - a.pf)[0];
-    S.push({ tone: "hot", kicker: "Scoring title", head: pick(["The Points Factory", "Highest-Scoring Team in the League", "Fear the Offense"], pfLead.oid + s.year), oid: pfLead.oid,
-      body: `${teamName(pfLead.oid)} leads the league with ${fmt(pfLead.pf)} points, ${fmt(pfLead.pf / pfLead.results.length)} per week.${pfLead.rank > 1 ? ` Somehow that's only good for ${ordinal(pfLead.rank)} in the standings.` : " The standings agree."}`, stat: `${recStr(pfLead)} · ${ordinal(pfLead.rank)} place` });
-  }
+  // ---- The race
   if (odds) {
     const bubble = s.standings.filter(r => { const p = odds.res[r.rid].playoff; return p >= 0.2 && p <= 0.8; });
-    if (bubble.length) S.push({ tone: "hot", kicker: "Playoff race", head: `${plural(bubble.length, "Team")} on the Bubble`, oid: bubble[0].oid,
-      body: `With ${plural(odds.weeksLeft, "week")} left, ${bubble.map(r => `${teamName(r.oid)} (${pct(odds.res[r.rid].playoff)})`).join(", ")} ${bubble.length === 1 ? "is" : "are"} fighting for a spot. ${odds.pt} teams get in.`, stat: `${CONFIG.SIMULATIONS.toLocaleString()} simulated finishes` });
+    if (bubble.length) race.push({ tone: "hot", kicker: "On the bubble", head: pick(["Every Sunday Is a Playoff Game Now", "Hydrate, Bubble Teams", "Nervous Energy Department"], bubble.length + s.year), oid: bubble[0].oid,
+      body: `${bubble.map(r => teamName(r.oid)).join(", ")} ${bubble.length === 1 ? "is" : "are"} fighting for the last spots with ${plural(odds.weeksLeft, "week")} to go.`, stat: bubble.map(r => `${teamName(r.oid)} ${pct(odds.res[r.rid].playoff)}`).join(" · ") });
     const lock = s.standings.filter(r => odds.res[r.rid].playoff >= 0.995);
+    if (lock.length) race.push({ tone: "hot", kicker: "Basically in", head: pick(["Already Shopping for Ring Sizes", "Punching the Ticket", "Clear the Calendar"], lock.length), oid: lock[0].oid,
+      body: `${lock.map(r => teamName(r.oid)).join(" and ")} made the playoffs in over 99.5% of simulations. Not mathematically clinched, but go ahead and gloat.`, stat: "" });
     const dead = s.standings.filter(r => odds.res[r.rid].playoff <= 0.005);
-    if (dead.length) S.push({ tone: "cold", kicker: "Eliminated, practically", head: "Eyes on the Rookie Draft", oid: dead[0].oid,
-      body: `${dead.map(r => teamName(r.oid)).join(", ")} made the playoffs in fewer than 1 of every 200 simulations. In dynasty, that's called a rebuild.`, stat: "" });
-    if (lock.length) S.push({ tone: "hot", kicker: "In, practically", head: "Punching the Ticket", oid: lock[0].oid,
-      body: `${lock.map(r => teamName(r.oid)).join(", ")} made the playoffs in more than 99.5% of simulations.`, stat: "" });
+    if (dead.length) race.push({ tone: "cold", kicker: "Basically out", head: pick(["Now Competing for the 1.01", "It's a Rebuild, Actually", "See You in the Rookie Draft"], dead.length), oid: dead[0].oid,
+      body: `${dead.map(r => teamName(r.oid)).join(" and ")} made the playoffs in fewer than 1 in 200 simulations. In dynasty we call that "accumulating assets."`, stat: "" });
   }
+  const lastChamp = done[done.length - 1];
+  if (lastChamp && s !== lastChamp && st.length) {
+    const r = s.standings.find(x => x.oid === lastChamp.champ);
+    if (r) race.push({ tone: r.rank <= 3 ? "hot" : "cold", kicker: "Defending champ", head: r.rank <= 2 ? "Heavy Is the Head, Still Wearing It" : r.rank > s.standings.length / 2 ? "Still Hungover From the Parade" : "Defending the Crown", oid: r.oid,
+      body: r.rank > s.standings.length / 2 ? `${teamName(r.oid)} won it all in ${lastChamp.year} and appears to still be celebrating.` : `${teamName(r.oid)} won it all in ${lastChamp.year} and is back in the mix.`, stat: `${recStr(r)} · ${ordinal(r.rank)}${odds ? ` · ${pct(odds.res[r.rid].playoff)} playoff odds` : ""}` });
+  }
+
+  // ---- Form & fortune (visual modules)
+  const form = st.map(r => ({ r, last5: r.results.slice(-5), quip: formQuip(r) }));
+  const luck = st.map(r => { const g = r.apW + r.apL; const exp = g ? r.apW / g * r.results.length : 0; return { r, exp, d: r.w + r.t / 2 - exp }; }).sort((x, y) => y.d - x.d);
+  const pfLead = [...st].sort((a, b) => b.pf - a.pf)[0];
+
+  // ---- Hall of fame & shame
   if (done.length) {
-    const ringLead = Object.values(at).filter(a => a.titles).sort((a, b) => b.titles - a.titles)[0];
-    if (ringLead) S.push({ tone: "hot", kicker: "Dynasty watch", head: ringLead.titles > 1 ? `${ringLead.titles} Rings and Counting` : "The Ring Bearer", oid: ringLead.oid,
-      body: `${teamName(ringLead.oid)} has ${ringLead.titles > 1 ? `won ${ringLead.titles} championships` : "a championship"} across ${plural(done.length, "completed season")}: ${done.filter(x => x.champ === ringLead.oid).map(x => x.year).join(", ")}.`, stat: `${ringLead.pw}-${ringLead.pl} all-time in the playoffs` });
-    const drought = active.map(o => at[o]).filter(a => a && !a.titles && a.seasons >= 2).sort((a, b) => b.seasons - a.seasons || b.finals - a.finals)[0];
-    if (drought) S.push({ tone: "cold", kicker: "Title drought", head: drought.finals ? "So Close, So Many Times" : "Still Chasing the First One", oid: drought.oid,
-      body: `${teamName(drought.oid)} is ${drought.seasons} seasons in without a title.${drought.finals ? ` It has reached the final ${plural(drought.finals, "time")}.` : drought.playoffs ? ` ${plural(drought.playoffs, "playoff trip")}, zero rings.` : ""}`, stat: `${drought.w}-${drought.l} all-time` });
-    const last = done[done.length - 1];
-    if (last && s !== last && st.length) {
-      const r = s.standings.find(x => x.oid === last.champ);
-      if (r) S.push({ tone: r.rank <= 3 ? "hot" : "cold", kicker: "Defending champ", head: r.rank <= 2 ? "Heavy Is the Head" : r.rank > s.standings.length / 2 ? "The Champion's Hangover" : "Defending the Crown", oid: r.oid,
-        body: `${teamName(r.oid)} won it all in ${last.year}. This year it's ${recStr(r)}, sitting ${ordinal(r.rank)}${odds ? ` with ${pct(odds.res[r.rid].playoff)} playoff odds` : ""}.`, stat: "" });
-    }
+    const ring = Object.values(at).filter(a => a.titles).sort((a, b) => b.titles - a.titles)[0];
+    if (ring) fame.push({ tone: "hot", kicker: "Ring count", head: ring.titles > 1 ? `${ring.titles} Rings. Please Clap.` : "One Ring to Rule Them All", oid: ring.oid,
+      body: `${teamName(ring.oid)} ${ring.titles > 1 ? `has ${ring.titles} titles` : "holds the title belt for bragging"} and will remind you about it unprompted.`, stat: `Titles: ${done.filter(x => x.champ === ring.oid).map(x => x.year).join(", ")} · ${ring.pw}-${ring.pl} in playoffs` });
+    const dr = active.map(o => at[o]).filter(a => a && !a.titles && a.seasons >= 2).sort((a, b) => b.seasons - a.seasons || b.finals - a.finals)[0];
+    if (dr) fame.push({ tone: "cold", kicker: "Title drought", head: dr.finals ? "Bridesmaid Energy" : "The Trophy Case Is Very Well Dusted", oid: dr.oid,
+      body: dr.finals ? `${teamName(dr.oid)} has made the final and walked away empty-handed. The runner-up plaque is in the mail.` : `${teamName(dr.oid)}: ${dr.seasons} seasons, zero rings. The shelf is ready whenever you are.`, stat: `${dr.seasons} seasons · ${dr.w}-${dr.l} all-time · ${plural(dr.finals, "final")}` });
   }
-  const all = M.allGames;
-  if (all.length) {
-    const flat = all.flatMap(g => [{ g, me: g.a, op: g.b }, { g, me: g.b, op: g.a }]);
+  const flat = M.allGames.flatMap(g => [{ g, me: g.a, op: g.b }, { g, me: g.b, op: g.a }]);
+  if (flat.length) {
     const hi = flat.reduce((x, y) => y.me.pts > x.me.pts ? y : x);
     const blow = flat.reduce((x, y) => (y.me.pts - y.op.pts) > (x.me.pts - x.op.pts) ? y : x);
     const heart = flat.filter(x => x.me.pts < x.op.pts).reduce((x, y) => (!x || y.me.pts > x.me.pts) ? y : x, null);
-    S.push({ tone: "hot", kicker: "Record book", head: hi.g.year === s.year ? "A New League Record" : "The Highest Score Ever", oid: hi.me.oid,
-      body: `${teamName(hi.me.oid)} dropped ${fmt(hi.me.pts)} on ${teamName(hi.op.oid)} in week ${hi.g.week} of ${hi.g.year}. Nobody has scored more in a single week.`, stat: `Final: ${fmt(hi.me.pts)}-${fmt(hi.op.pts)}` });
-    if (heart) S.push({ tone: "cold", kicker: "Heartbreak", head: "Most Points in a Loss", oid: heart.me.oid,
-      body: `${teamName(heart.me.oid)} scored ${fmt(heart.me.pts)} in week ${heart.g.week} of ${heart.g.year} and still lost, because ${teamName(heart.op.oid)} found ${fmt(heart.op.pts)}.`, stat: `Lost by ${fmt(heart.op.pts - heart.me.pts)}` });
-    S.push({ tone: "cold", kicker: "Record book", head: "The Biggest Beatdown", oid: blow.me.oid,
-      body: `${teamName(blow.me.oid)} beat ${teamName(blow.op.oid)} by ${fmt(blow.me.pts - blow.op.pts)} in week ${blow.g.week} of ${blow.g.year}. Some scars don't heal.`, stat: `${fmt(blow.me.pts)}-${fmt(blow.op.pts)}` });
+    const when = x => `${x.g.year}, week ${x.g.week}`;
+    fame.push({ tone: "hot", kicker: "Record: high score", head: hi.g.year === s.year ? "Fresh League Record" : `${fmt(hi.me.pts)} Points. One Week.`, oid: hi.me.oid,
+      body: `${teamName(hi.me.oid)} hung ${fmt(hi.me.pts)} on ${teamName(hi.op.oid)}. ${teamName(hi.op.oid)} is still processing it.`, stat: `${when(hi)} · ${fmt(hi.me.pts)}-${fmt(hi.op.pts)}` });
+    fame.push({ tone: "cold", kicker: "Record: blowout", head: pick(["Not a Game, a Crime Scene", "The Mercy Rule Was Not Invoked", "Witnesses Are Still Shaken"], blow.g.year + blow.me.oid), oid: blow.me.oid,
+      body: `${teamName(blow.me.oid)} beat ${teamName(blow.op.oid)} by ${fmt(blow.me.pts - blow.op.pts)}. Thoughts and prayers.`, stat: `${when(blow)} · ${fmt(blow.me.pts)}-${fmt(blow.op.pts)}` });
+    if (heart) fame.push({ tone: "cold", kicker: "Record: heartbreak", head: "Most Points in a Loss", oid: heart.me.oid,
+      body: `${teamName(heart.me.oid)} scored ${fmt(heart.me.pts)} and lost anyway. Some weeks the universe just says no.`, stat: `${when(heart)} · lost to ${teamName(heart.op.oid)} by ${fmt(heart.op.pts - heart.me.pts)}` });
     const pairs = [];
     for (const [x, row] of Object.entries(M.h2h)) for (const [y, m] of Object.entries(row)) if (x < y && O(x).active && O(y).active) pairs.push({ x, y, m, n: m.games.length, close: mean(m.games.map(g => Math.abs(g.a.pts - g.b.pts))) });
     const riv = pairs.filter(p => p.n >= 3).sort((a, b) => (b.n - Math.abs(b.m.w - b.m.l) * 0.7) - (a.n - Math.abs(a.m.w - a.m.l) * 0.7) || a.close - b.close)[0];
-    if (riv) S.push({ tone: "hot", kicker: "Rivalry", head: `${teamName(riv.x)} vs. ${teamName(riv.y)}`, oid: riv.x,
-      body: `${plural(riv.n, "meeting")}, decided by ${fmt(riv.close)} points on average. ${h2hLine(riv.x, riv.y).text}`, stat: `Series ${riv.m.w}-${riv.m.l}${riv.m.t ? "-" + riv.m.t : ""}` });
+    if (riv) { const h = h2hAsOf(riv.x, riv.y, 9999, 99, true);
+      fame.push({ tone: "hot", kicker: "Best rivalry", head: `${teamName(riv.x)} vs. ${teamName(riv.y)}`, oid: riv.x,
+        body: `${plural(riv.n, "meeting")}, decided by ${fmt(riv.close)} points on average. ${seriesText(riv.x, riv.y, h)} Somebody start a group chat just for these two.`, stat: lastMeetingText(h) }); }
   }
+
+  // ---- Front office
   const trades = Object.entries(s.raw.tx).flatMap(([w, list]) => (list || []).filter(t => t.type === "trade" && t.status === "complete").map(t => ({ ...t, week: +w })));
   if (trades.length) {
     const t = [...trades].sort((a, b) => (b.status_updated || 0) - (a.status_updated || 0))[0];
-    const got = r => [...Object.entries(t.adds || {}).filter(([, rid]) => rid === r).map(([pid]) => pname(pid)), ...(t.draft_picks || []).filter(p => p.owner_id === r).map(p => `a ${p.season} round ${p.round} pick`)];
-    const desc = (t.roster_ids || []).map(r => `${teamName(s.ownerOf[r])} gets ${got(r).join(", ") || "future considerations"}`).join("; ");
+    const got = r => [...Object.entries(t.adds || {}).filter(([, rid]) => rid === r).map(([pid]) => pname(pid)), ...(t.draft_picks || []).filter(p => p.owner_id === r).map(p => `${p.season} R${p.round} pick`)];
     const counts = {}; for (const tr of trades) for (const r of tr.roster_ids || []) counts[s.ownerOf[r]] = (counts[s.ownerOf[r]] || 0) + 1;
     const [busy, nb] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    S.push({ tone: "hot", kicker: "Trade desk", head: "Latest Deal on the Wire", oid: s.ownerOf[(t.roster_ids || [])[0]], body: `${desc}.`, stat: `Week ${t.week} · ${plural(trades.length, "trade")} this season${nb >= 2 ? ` · ${teamName(busy)} is busiest (${nb})` : ""}` });
+    office.push({ tone: "hot", kicker: `Latest trade · week ${t.week}`, head: pick(["Both Sides Think They Won", "Somebody Got Fleeced (TBD Who)", "The Phones Are Ringing"], t.week + (t.roster_ids || []).join()), oid: s.ownerOf[(t.roster_ids || [])[0]],
+      list: (t.roster_ids || []).map(r => [teamName(s.ownerOf[r]), got(r).join(", ") || "vibes"]),
+      stat: `${plural(trades.length, "trade")} this season${nb >= 2 ? ` · ${teamName(busy)} can't stop dialing (${nb})` : ""}` });
   }
-  // most recent rookie draft (short drafts only, so the startup draft is skipped)
   const drafts = M.seasons.flatMap(x => x.raw.drafts.map(d => ({ d, picks: x.raw.draftPicks[d.draft_id] }))).filter(x => x.d.status === "complete" && x.picks?.length && (x.d.settings?.rounds || 99) <= 6)
     .sort((a, b) => (b.d.start_time || 0) - (a.d.start_time || 0));
   if (drafts.length) {
     const { d, picks } = drafts[0];
-    const firsts = picks.filter(p => p.round === 1).sort((a, b) => a.pick_no - b.pick_no).slice(0, 3);
+    const firsts = picks.filter(p => p.round === 1).sort((a, b) => a.pick_no - b.pick_no).slice(0, 4);
     const nm = p => p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id);
-    const rows = firsts.map(p => { const v = M.cur.pAvg[p.player_id]; return `${nm(p)} (1.${String(p.pick_no).padStart(2, "0")}${v ? `, ${fmt(v)} ppg` : ""})`; });
-    if (rows.length) S.push({ tone: "hot", kicker: `${d.season} rookie class`, head: "How the Top Picks Are Aging", oid: firsts[0].picked_by,
-      body: `The top of the ${d.season} rookie draft: ${rows.join(", ")}.`, stat: "Points per game while on a fantasy roster this season" });
+    if (firsts.length) office.push({ tone: "hot", kicker: `${d.season} rookie class`, head: "Report Card: Round 1", oid: firsts[0].picked_by,
+      list: firsts.map(p => { const v = M.cur.pAvg[p.player_id]; return [`1.${String(p.pick_no).padStart(2, "0")} ${nm(p)}`, `${teamName(p.picked_by)}${v ? ` · ${fmt(v)} ppg` : " · no points yet"}`]; }),
+      stat: "Points per game on a fantasy roster this season" });
   }
-  return S;
+  return { race, form, luck, pfLead, fame, office };
 }
 
 /* ---------------- render: shared bits ---------------- */
@@ -772,7 +876,7 @@ function viewGameday() {
 }
 
 function matchupCard(mu, s, gd) {
-  const sideRow = (x, y, p) => `<div class="side ${x.pts >= y.pts ? "lead" : ""}">${avatarHTML(x.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(x.oid))}</div><div class="mgr">${esc(O(x.oid).name)} · ${recStr(s.rec[x.rid] || { w: 0, l: 0 })}${gd.isPast ? "" : `<span class="proj-inline"> · proj ${fmt(x.final)}</span>`}</div></div>
+  const sideRow = (x, y, p) => `<div class="side ${x.pts >= y.pts ? "lead" : ""}">${avatarHTML(x.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(x.oid))}</div><div class="mgr">${recStr(s.rec[x.rid] || { w: 0, l: 0 })}${gd.isPast ? "" : `<span class="proj-inline"> · proj ${fmt(x.final)}</span>`}</div></div>
     <div class="proj">${gd.isPast ? "" : `proj ${fmt(x.final)}`}</div><div class="score">${fmt(x.pts, 2)}</div></div>`;
   const pl = x => x.players.map(p => `<div class="pl"><span class="pos">${esc(p.slot.replace("SUPER_FLEX", "SF").replace("FLEX", "FLX").replace("REC_FLX", "RFX"))}</span><span class="nm"><span class="st ${p.status}" title="${p.status === "pre" ? "Yet to play" : p.status === "live" ? "Playing now" : "Finished"}"></span>${esc(pname(p.pid))} <span class="muted" style="font-size:11px">${esc(ppos(p.pid))} ${esc(pteam(p.pid))}</span></span><span class="pts">${fmt(p.actual, 2)}${!gd.isPast && p.status !== "done" ? ` <span class="muted">/${fmt(p.proj, 1)}</span>` : ""}</span></div>`).join("");
   const ca = color(mu.a.oid), cb = color(mu.b.oid);
@@ -780,34 +884,57 @@ function matchupCard(mu, s, gd) {
     <div class="mu-teams">${sideRow(mu.a, mu.b)}${sideRow(mu.b, mu.a)}</div>
     <div class="wp" role="img" aria-label="Win probability ${pct(mu.pA)} to ${pct(1 - mu.pA)}"><span style="width:${mu.pA * 100}%;background:${ca}"></span><span style="width:${(1 - mu.pA) * 100}%;background:${cb}"></span></div>
     <div class="wp-l"><span>${gd.isPast ? (mu.a.pts > mu.b.pts ? "WIN" : mu.a.pts < mu.b.pts ? "LOSS" : "TIE") : pct(mu.pA)}</span><span>${gd.isPast ? "" : "win odds"}</span><span>${gd.isPast ? (mu.b.pts > mu.a.pts ? "WIN" : mu.b.pts < mu.a.pts ? "LOSS" : "TIE") : pct(1 - mu.pA)}</span></div>
-    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu) : matchupBlurb(mu, STATE.odds))}</div>
+    <div class="blurb">${esc(gd.isPast ? recapBlurb(mu, s.year, gd.week) : previewBlurb(mu, STATE.odds, s.year, gd.week))}</div>
     <details class="lu"><summary>Starting lineups</summary><div class="lineups"><div>${pl(mu.a)}</div><div>${pl(mu.b)}</div></div></details>
   </article>`;
 }
 
-function recapBlurb(mu) {
-  const [w, l] = mu.a.pts >= mu.b.pts ? [mu.a, mu.b] : [mu.b, mu.a];
-  const margin = w.pts - l.pts;
-  const star = [...w.players].sort((p, q) => q.actual - p.actual)[0];
-  const lead = margin < 3 ? `${teamName(w.oid)} survived by ${fmt(margin, 2)}.` : margin > 40 ? `${teamName(w.oid)} ran ${teamName(l.oid)} off the field by ${fmt(margin)}.` : `${teamName(w.oid)} beat ${teamName(l.oid)} by ${fmt(margin)}.`;
-  return `${lead}${star ? ` ${pname(star.pid)} led the way with ${fmt(star.actual)}.` : ""} ${h2hLine(w.oid, l.oid).text}`;
+function storyCard(st) {
+  return `<article class="story tone-${st.tone}" style="--team:${st.oid ? color(st.oid) : "var(--accent)"}"><div class="eyebrow">${esc(st.kicker)}</div><h4>${esc(st.head)}</h4>${st.body ? `<p>${esc(st.body)}</p>` : ""}${st.list ? `<dl class="kv">${st.list.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}${st.stat ? `<div class="stat">${esc(st.stat)}</div>` : ""}</article>`;
+}
+function section(id, title, sub, html) {
+  return html ? `<section class="sect" id="sec-${id}"><div class="sect-h"><h3>${title}</h3>${sub ? `<p>${sub}</p>` : ""}</div>${html}</section>` : "";
 }
 
 function viewStories() {
-  const stories = buildStories(STATE.gd, STATE.odds);
-  const gd = STATE.gd;
-  let leadHTML = "";
+  const gd = STATE.gd, odds = STATE.odds, s = M.cur, S = buildStories(gd, odds);
+  const out = [];
+
+  // This week
   if (gd && gd.matchups.length && !gd.isPast) {
-    const mu = [...gd.matchups].sort((x, y) => {
-      const sc = m => { const h = M.h2h[m.a.oid]?.[m.b.oid]?.games.length || 0; const close = 1 - Math.abs(0.5 - m.pA) * 2; const o = STATE.odds; const stake = o ? (1 - Math.abs(0.5 - (o.res[m.a.rid]?.playoff ?? .5)) * 2) + (1 - Math.abs(0.5 - (o.res[m.b.rid]?.playoff ?? .5)) * 2) : 0; return close * 2 + stake + Math.min(h, 6) * 0.15; };
-      return sc(y) - sc(x);
-    })[0];
-    leadHTML = `<section class="panel lead-story"><div><div class="eyebrow">Game of the week · Week ${gd.week}</div><h3>${esc(teamName(mu.a.oid))} vs. ${esc(teamName(mu.b.oid))}</h3><p>${esc(matchupBlurb(mu, STATE.odds))}</p></div>
-      <div class="stack">${[mu.a, mu.b].map(x => `<div class="side">${avatarHTML(x.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(x.oid))}</div><div class="mgr">${recStr(M.cur.rec[x.rid] || { w: 0, l: 0 })}${STATE.odds ? ` · ${pct(STATE.odds.res[x.rid]?.playoff)} playoff odds` : ""}</div></div><div></div><div class="score">${pct(x === mu.a ? mu.pA : 1 - mu.pA)}</div></div>`).join("")}</div></section>`;
+    const score = m => { const h = M.h2h[m.a.oid]?.[m.b.oid]?.games.length || 0; const close = 1 - Math.abs(0.5 - m.pA) * 2;
+      const stake = odds ? (1 - Math.abs(0.5 - (odds.res[m.a.rid]?.playoff ?? .5)) * 2) + (1 - Math.abs(0.5 - (odds.res[m.b.rid]?.playoff ?? .5)) * 2) : 0; return close * 2 + stake + Math.min(h, 6) * 0.15; };
+    const ranked = [...gd.matchups].sort((x, y) => score(y) - score(x)), mu = ranked[0];
+    const lead = `<div class="panel lead-story"><div><div class="eyebrow">Game of the week</div><h3>${esc(teamName(mu.a.oid))} vs. ${esc(teamName(mu.b.oid))}</h3><p>${esc(previewBlurb(mu, odds, s.year, gd.week))}</p></div>
+      <div class="stack">${[mu.a, mu.b].map(x => `<div class="side">${avatarHTML(x.oid)}<div style="min-width:0"><div class="tname">${esc(teamName(x.oid))}</div><div class="mgr">${recStr(s.rec[x.rid] || { w: 0, l: 0 })}${odds ? ` · ${pct(odds.res[x.rid]?.playoff)} playoff odds` : ""}</div></div><div></div><div class="score">${pct(x === mu.a ? mu.pA : 1 - mu.pA)}</div></div>`).join("")}</div></div>`;
+    const slate = `<ul class="slate">${ranked.slice(1).map(m => { const fav = m.pA >= 0.5 ? m.a : m.b; return `<li><div class="vs"><span class="chip" style="background:${color(m.a.oid)}"></span>${esc(teamName(m.a.oid))} <span class="muted">vs</span> <span class="chip" style="background:${color(m.b.oid)}"></span>${esc(teamName(m.b.oid))}</div><div class="odds mono">${esc(teamName(fav.oid).split(" ")[0])} ${pct(Math.max(m.pA, 1 - m.pA))}</div><div class="q">${esc(previewLead(m, gd.week))}</div></li>`; }).join("")}</ul>`;
+    out.push(section("week", `Week ${gd.week}`, gd.anyLive ? "Live now" : "The slate, ranked by drama", lead + (ranked.length > 1 ? slate : "")));
   }
-  const cards = stories.map(st => `<article class="story tone-${st.tone}" style="border-top:3px solid ${st.oid ? color(st.oid) : "var(--accent)"}"><div class="eyebrow">${esc(st.kicker)}</div><h4>${esc(st.head)}</h4><p>${esc(st.body)}</p>${st.stat ? `<div class="stat">${esc(st.stat)}</div>` : ""}</article>`).join("");
-  return `<div class="section-h"><div><div class="eyebrow">Written from ${plural(M.seasons.length, "season")} of league data</div><h2>Storylines</h2></div></div>
-    <div class="stack">${leadHTML}<div class="grid g3">${cards || `<p class="muted">Stories show up once games have been played.</p>`}</div></div>`;
+
+  // The race
+  out.push(section("race", "The Race", odds ? `${odds.pt} playoff spots, ${plural(odds.weeksLeft, "week")} left` : "", S.race.length ? `<div class="grid g3">${S.race.map(storyCard).join("")}</div>` : ""));
+
+  // Form & fortune
+  if (S.form.length) {
+    const ordered = [...S.form].sort((a, b) => a.r.rank - b.r.rank);
+    const formHTML = `<div class="panel"><h4 class="mini">Form guide</h4><div class="formrows">${ordered.map(f => `<div class="formrow"><span class="chip" style="background:${color(f.r.oid)}"></span><span class="fn">${esc(teamName(f.r.oid))}</span><span class="res">${f.last5.map(x => `<i class="r ${x}">${x}</i>`).join("")}</span><span class="fq">${esc(f.quip)}</span></div>`).join("")}</div>
+      ${S.pfLead ? `<p class="note" style="margin:12px 0 0">Points leader: <b>${esc(teamName(S.pfLead.oid))}</b>, ${fmt(S.pfLead.pf)} points${S.pfLead.rank > 1 ? `, which somehow only buys ${ordinal(S.pfLead.rank)} place` : ", and the standings agree"}.</p>` : ""}</div>`;
+    const maxAbs = Math.max(1, ...S.luck.map(x => Math.abs(x.d)));
+    const top = S.luck[0], bot = S.luck[S.luck.length - 1];
+    const luckHTML = `<div class="panel"><h4 class="mini">Luck meter</h4><p class="note" style="margin:-4px 0 10px">Actual wins minus the wins you'd expect if every team played everyone every week.</p>
+      <div class="luckrows">${S.luck.map(x => { const w = Math.abs(x.d) / maxAbs * 50; return `<div class="luckrow"><span class="fn">${esc(teamName(x.r.oid))}</span><span class="lbar"><i style="${x.d >= 0 ? `left:50%;width:${w}%;background:var(--win)` : `right:50%;width:${w}%;background:var(--loss)`}"></i></span><span class="mono lv">${x.d >= 0 ? "+" : "−"}${fmt(Math.abs(x.d))}</span></div>`; }).join("")}</div>
+      <p class="note" style="margin:12px 0 0">${top.d >= 1 ? `${esc(teamName(top.r.oid))} would have about ${fmt(top.exp, 1)} wins on a neutral schedule. Buy a lottery ticket. ` : ""}${bot.d <= -1 ? `${esc(teamName(bot.r.oid))} scores like a contender and wins like a punchline.` : ""}</p></div>`;
+    out.push(section("form", "Form &amp; Fortune", "Who's hot, who's not, and who's getting away with it", `<div class="grid g2">${formHTML}${luckHTML}</div>`));
+  }
+
+  out.push(section("fame", "Hall of Fame &amp; Shame", `${plural(M.seasons.length, "season")} of receipts`, S.fame.length ? `<div class="grid g3">${S.fame.map(storyCard).join("")}</div>` : ""));
+  out.push(section("office", "Front Office", "Trades, picks and other crimes", S.office.length ? `<div class="grid g2">${S.office.map(storyCard).join("")}</div>` : ""));
+
+  const body = out.filter(Boolean);
+  const jumps = [["week", "This week"], ["race", "The race"], ["form", "Form"], ["fame", "Hall of fame"], ["office", "Front office"]]
+    .filter(([id]) => body.some(h => h.includes(`id="sec-${id}"`))).map(([id, l]) => `<button class="btn" type="button" data-jump="sec-${id}">${l}</button>`).join("");
+  return `<div class="section-h"><div><div class="eyebrow">Written from ${plural(M.seasons.length, "season")} of league data</div><h2>Storylines</h2></div><div class="jump">${jumps}</div></div>
+    <div class="stack" style="gap:36px">${body.join("") || `<p class="muted">Stories show up once games have been played.</p>`}</div>`;
 }
 
 function viewOutlook() {
@@ -996,6 +1123,69 @@ function viewDynasty() {
     <div class="stack">${table}${legend}${buzzHTML}</div>`;
 }
 
+
+/* ---------------- landing gate ---------------- */
+const TAGLINES = [
+  "Trash talk is mandatory. Setting your lineup is, technically, optional.",
+  "Where rebuilds go to become five-year plans.",
+  "Home of questionable trades and unquestionable grudges.",
+  "Abandon hope, all ye who started a kicker in the flex.",
+  "Est. by friends. Maintained by spite."
+];
+const WRONG = [
+  "Nope. That's the password for the toilet bowl.",
+  "Wrong. Did you try your Sleeper username backwards?",
+  "Denied. The commissioner has been notified (not really).",
+  "Incorrect. This is why you didn't make the playoffs."
+];
+async function sha256(t) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function isUnlocked() {
+  if (!CONFIG.PASSWORD_SHA256) return true;
+  let v = null;
+  try { v = localStorage.getItem("gate") || sessionStorage.getItem("gate"); } catch {}
+  return v === CONFIG.PASSWORD_SHA256;
+}
+function showGate(leagueName) {
+  return new Promise(resolve => {
+    document.body.classList.add("locked");
+    let n = 0;
+    $("#app").innerHTML = `<div class="gate"><div class="gate-card">
+      <div class="stripes" aria-hidden="true"></div>
+      <div class="eyebrow">Members only · Dynasty league</div>
+      <h1 id="gate-name">${esc(leagueName || "Dynasty Gameday Desk")}</h1>
+      <p class="tag">${esc(pick(TAGLINES, new Date().toDateString()))}</p>
+      <form id="gate-form" autocomplete="on">
+        <label class="eyebrow" for="gate-pw" style="flex-basis:100%">League password</label>
+        <input id="gate-pw" type="password" autocomplete="current-password" required>
+        <button class="go" type="submit">Enter</button>
+        <label class="remember" for="gate-remember" style="flex-basis:100%"><input id="gate-remember" type="checkbox" checked> Remember me on this device</label>
+      </form>
+      <p class="msg" id="gate-msg" role="alert"></p>
+      <div class="fine">No password? Ask the commissioner. Begging is permitted.</div>
+    </div></div>`;
+    $("#gate-pw").focus();
+    $("#gate-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const card = $(".gate-card"), msg = $("#gate-msg");
+      let h = "";
+      try { h = await sha256($("#gate-pw").value.trim()); } catch { msg.textContent = "This browser can't check the password here. Open the site over https."; return; }
+      if (h !== CONFIG.PASSWORD_SHA256) {
+        msg.textContent = WRONG[n++ % WRONG.length];
+        card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+        $("#gate-pw").select();
+        return;
+      }
+      try { ($("#gate-remember").checked ? localStorage : sessionStorage).setItem("gate", h); } catch {}
+      document.body.classList.remove("locked");
+      resolve();
+    });
+  });
+}
+function lockAgain() { try { localStorage.removeItem("gate"); sessionStorage.removeItem("gate"); } catch {} location.reload(); }
+
 /* ---------------- app shell ---------------- */
 function render() {
   const app = $("#app");
@@ -1069,10 +1259,17 @@ function currentLeagueId() {
 
 async function boot() {
   const id = currentLeagueId();
+  $("#lock").hidden = !CONFIG.PASSWORD_SHA256;
   if (!id) return showSetup();
+  const loading = loadAll(id);   // start pulling data while the gate is up
+  loading.catch(() => {});
+  if (!isUnlocked()) {
+    const lg = await getJSON(`${API}/league/${id}`, { ttl: 10 * MIN, optional: true });
+    await showGate(lg?.name);
+  }
   $("#app").innerHTML = `<div class="loader"><div class="big">Warming up</div><p class="muted" id="progress">Connecting to Sleeper…</p></div>`;
   try {
-    const data = await loadAll(id);
+    const data = await loading;
     M = buildModel(data);
   } catch (e) {
     console.error(e);
@@ -1104,6 +1301,8 @@ $("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); 
 $("#app").addEventListener("click", async e => {
   const wk = e.target.closest("[data-week]");
   if (wk) { STATE.week = +wk.dataset.week; await refreshGameday(false); render(); return; }
+  const j = e.target.closest("[data-jump]");
+  if (j) { document.getElementById(j.dataset.jump)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); return; }
   const so = e.target.closest("[data-sort]");
   if (so) { const k = so.dataset.sort; STATE.sort = { k, d: STATE.sort.k === k ? -STATE.sort.d : -1 }; render(); }
 });
@@ -1112,6 +1311,7 @@ $("#refresh").addEventListener("click", async () => {
   const b = $("#refresh"); b.disabled = true; b.textContent = "Refreshing…";
   try { await refreshGameday(true); render(); } catch (e) { console.warn(e); } finally { b.disabled = false; b.textContent = "Refresh"; }
 });
+$("#lock").addEventListener("click", lockAgain);
 $("#change-league").addEventListener("click", () => { clearTimeout(STATE.timer); M = null; showSetup(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && M) schedulePoll(); });
 boot();
