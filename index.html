@@ -482,6 +482,12 @@ a.wk{text-decoration:none;color:inherit;text-align:center;display:inline-block}
 .jstop small{font:500 10.5px var(--mono);color:var(--muted)}
 .jarrow{color:var(--muted);padding:0 5px}
 details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.sms{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
+.sm{border:1px solid var(--line);border-radius:8px;padding:10px 10px 4px;min-width:0}
+.sm-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.sm-h .mono{font-size:11px}
+.sm svg{width:100%;height:auto;display:block}
+.sm svg text{font-size:10px}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -1457,21 +1463,37 @@ function viewOutlook() {
 }
 
 function scoringChart(s) {
-  const series = s.standings.filter(r => r.scores.length).map(r => ({ oid: r.oid, pts: r.scores.map(x => x.pts), weeks: r.scores.map(x => x.week) }));
+  // Small multiples: one panel per team, its line in color over everyone else in faint gray
+  const series = s.standings.filter(r => r.scores.length).map(r => ({ oid: r.oid, rank: r.rank, pts: r.scores.map(x => x.pts), weeks: r.scores.map(x => x.week) }));
   if (!series.length) return "";
-  const all = series.flatMap(x => x.pts); const mx = Math.ceil(Math.max(...all) / 20) * 20, mn = Math.floor(Math.min(...all) / 20) * 20;
+  const all = series.flatMap(x => x.pts), mx = Math.ceil(Math.max(...all) / 10) * 10, mn = Math.floor(Math.min(...all) / 10) * 10;
   const weeks = [...new Set(series.flatMap(x => x.weeks))].sort((a, b) => a - b);
-  const W = 760, H = 280, L = 40, R = 12, T = 12, B = 26;
-  const X = w => L + (weeks.length === 1 ? (W - L - R) / 2 : (weeks.indexOf(w)) * (W - L - R) / (weeks.length - 1));
-  const Y = v => T + (1 - (v - mn) / ((mx - mn) || 1)) * (H - T - B);
-  const ticks = []; for (let v = mn; v <= mx; v += 20) ticks.push(v);
   const lgAvg = weeks.map(w => mean(series.map(x => x.pts[x.weeks.indexOf(w)]).filter(v => v != null)));
-  return `<section class="panel"><h3>Weekly Scoring</h3><p class="note" style="margin-top:-6px">Every team's weekly score; the dashed line is the league average. Hover a line to see whose it is.</p><div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto" role="img" aria-label="Weekly scores by team">
-    ${ticks.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
-    ${weeks.map(w => `<text x="${X(w)}" y="${H - 8}" text-anchor="middle">${w}</text>`).join("")}
-    ${series.map(x => `<path d="${x.pts.map((v, i) => `${i ? "L" : "M"}${X(x.weeks[i]).toFixed(1)},${Y(v).toFixed(1)}`).join("")}" fill="none" stroke="${color(x.oid)}" stroke-width="1.8" opacity=".8"><title>${esc(teamName(x.oid))}</title></path>`).join("")}
-    <path d="${lgAvg.map((v, i) => `${i ? "L" : "M"}${X(weeks[i]).toFixed(1)},${Y(v).toFixed(1)}`).join("")}" fill="none" stroke="var(--fg)" stroke-width="2" stroke-dasharray="5 4"/>
-  </svg></div></section>`;
+  const W = 300, H = 120, L = 30, R = 34, T = 8, B = 18;
+  const X = w => L + (weeks.length === 1 ? (W - L - R) / 2 : weeks.indexOf(w) * (W - L - R) / (weeks.length - 1));
+  const Y = v => T + (1 - (v - mn) / ((mx - mn) || 1)) * (H - T - B);
+  const pathOf = x => x.pts.map((v, i) => `${i ? "L" : "M"}${X(x.weeks[i]).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const avgPath = lgAvg.map((v, i) => `${i ? "L" : "M"}${X(weeks[i]).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const ghosts = series.map(x => `<path d="${pathOf(x)}" fill="none" stroke="var(--muted)" stroke-width="1" opacity=".22"/>`).join("");
+  const mid = Math.round((mn + mx) / 2 / 10) * 10;
+  const panel = x => {
+    const c = color(x.oid), li = x.pts.length - 1, last = x.pts[li], avg = mean(x.pts);
+    const hi = Math.max(...x.pts), hiI = x.pts.indexOf(hi);
+    return `<div class="sm"><div class="sm-h"><span class="fn"><span class="chip" style="background:${c}"></span>${esc(teamName(x.oid))}</span><span class="mono muted">${fmt(avg)} ppg</span></div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(teamName(x.oid))} weekly scores">
+        ${[mn, mid, mx].map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 5}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+        ${ghosts}
+        <path d="${avgPath}" fill="none" stroke="var(--fg)" stroke-width="1.2" stroke-dasharray="3 3" opacity=".55"/>
+        <path d="${pathOf(x)}" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round"/>
+        <circle cx="${X(x.weeks[hiI])}" cy="${Y(hi)}" r="3" fill="${c}"/>
+        <circle cx="${X(x.weeks[li])}" cy="${Y(last)}" r="4" fill="${c}" stroke="var(--surface)" stroke-width="2"/>
+        <text x="${X(x.weeks[li]) + 7}" y="${Y(last) + 4}" style="fill:var(--fg);font-weight:600">${fmt(last, 0)}</text>
+        <text x="${L}" y="${H - 4}">Wk ${weeks[0]}</text><text x="${W - R}" y="${H - 4}" text-anchor="end">Wk ${weeks[weeks.length - 1]}</text>
+        ${x.pts.map((v, i) => `<rect x="${X(x.weeks[i]) - 8}" y="${T}" width="16" height="${H - T - B}" fill="transparent"><title>Week ${x.weeks[i]}: ${fmt(v)} (league avg ${fmt(lgAvg[weeks.indexOf(x.weeks[i])])})</title></rect>`).join("")}
+      </svg></div>`;
+  };
+  return `<section class="panel"><h3>Weekly Scoring</h3><p class="note" style="margin-top:-6px">One panel per team, in standings order. The colored line is that team; gray lines are everyone else; the dashed line is the league average. The number at the end is the latest week, and the small dot marks their best week. Hover a week for the exact score.</p>
+    <div class="sms">${series.sort((a, b) => a.rank - b.rank).map(panel).join("")}</div></section>`;
 }
 
 function viewHistory() {
