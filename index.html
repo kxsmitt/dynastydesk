@@ -390,6 +390,61 @@ a.mu-teams:focus-visible,.mu-open:focus-visible,.sb-id:focus-visible{outline:2px
 .tk-when{font:500 11px/1 var(--mono);color:var(--muted)}
 .tk-sep{color:var(--muted);padding:0 18px}
 @media (prefers-reduced-motion:reduce){.tk-move{animation:none}.tk-track{overflow-x:auto;-webkit-mask-image:none;mask-image:none}.tk-dup{display:none}}
+/* weekly recap */
+a.wk{text-decoration:none;color:inherit;text-align:center;display:inline-block}
+.wk[aria-current="page"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.teaser{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap;padding:18px 20px;border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:var(--radius);background:var(--surface);color:inherit;text-decoration:none}
+.teaser:hover{border-color:var(--accent)}
+.teaser:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.teaser h3{margin:6px 0 8px;font-size:28px}
+.teaser ul{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+.teaser ul b{color:var(--fg)}
+.teaser-cta{font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);white-space:nowrap}
+.teaser.slim{margin-bottom:16px;padding:12px 16px;align-items:center}
+.teaser.slim b{font-size:15px}
+.recap-lead{font:400 clamp(18px,2.2vw,21px)/1.5 var(--story);max-width:70ch;margin:8px 0 0}
+.sc{display:flex;flex-direction:column;gap:7px}
+.sc-row{display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 54px 54px 22px;gap:10px;align-items:center}
+.sc-track{position:relative;height:20px;background:var(--surface-2);border-radius:4px}
+.sc-bar{position:absolute;inset:0 auto 0 0;border-radius:0 4px 4px 0;opacity:.9}
+.sc-proj{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;background:var(--fg);border-radius:2px}
+.sc-med{position:absolute;top:-5px;bottom:-5px;border-left:2px dashed var(--muted)}
+.sc-v{text-align:right;font-weight:600}
+.sc-d{text-align:right;font-size:12px}
+.up{color:var(--win)}.dn{color:var(--loss)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px}
+.legend i.lg-proj{width:3px;height:14px;background:var(--fg)}
+.legend i.lg-med{width:0;height:14px;border-left:2px dashed var(--muted);border-radius:0}
+.feat-h{display:flex;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+.feat-h h3{margin:6px 0 6px}
+.feat-story{font:400 17px/1.45 var(--story);margin:0;max-width:62ch}
+.chart-scroll{overflow-x:auto}
+.wp-big{width:100%;min-width:520px;height:auto;display:block}
+.mms{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.mm{display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);color:inherit;text-decoration:none;min-width:0}
+.mm:hover{border-color:var(--accent)}
+.mm:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mm-h{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600}
+.mm-h>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wp-mini{width:100%;height:auto;display:block}
+.mm-q{font:italic 400 14px/1.35 var(--story);color:var(--muted)}
+.perfs{display:flex;flex-direction:column}
+.perf{display:grid;grid-template-columns:18px 36px minmax(0,1fr) minmax(60px,120px) 70px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.perf:last-child{border-bottom:0}
+.perf .hs{width:36px;height:36px}
+.perf-bar{height:10px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.perf-bar i{display:block;height:100%;border-radius:0 3px 3px 0}
+.perf-v{text-align:right;font-weight:600;display:flex;flex-direction:column;line-height:1.15}
+.perf-v small{font-size:11px;font-weight:500}
+@media (max-width:640px){
+  .sc-row{grid-template-columns:minmax(0,1fr) 50px 22px;gap:4px 8px}
+  .sc-row .sc-track{grid-column:1/-1;grid-row:2}
+  .sc-row .sc-d{display:none}
+  .perf{grid-template-columns:16px 32px minmax(0,1fr) 62px}
+  .perf .perf-bar,.perf .perf-proj{display:none}
+}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -1239,6 +1294,7 @@ function viewGameday() {
   const cards = gd.matchups.sort((x, y) => Math.abs(0.5 - x.pA) - Math.abs(0.5 - y.pA)).map(mu => matchupCard(mu, s, gd)).join("");
   const projNote = gd.isPast ? "" : `<p class="note">Projected finals use ${gd.hasProj ? "Sleeper's weekly player projections scored with your league's settings" : "each player's season average (projections unavailable)"}${gd.hasSched ? " and live NFL game status" : ""}. Win odds are an estimate, not gospel.</p>`;
   return `<div class="section-h"><div><div class="eyebrow">${s.year} season · Week ${gd.week} · ${label}</div><h2>${gd.isPast ? "The Final Whistle" : gd.anyLive ? "Live From the League" : "This Week's Slate"}</h2></div><div class="weeks" role="group" aria-label="Week">${wkBtns}</div></div>
+  ${gd.isPast && gd.matchups.length ? `<a class="teaser slim" href="#recap-${gd.week}"><div><div class="eyebrow">Week ${gd.week} in review</div><b>Swing charts, upsets, blowouts and awards</b></div><span class="teaser-cta">Watch the tape <span aria-hidden="true">→</span></span></a>` : ""}
   ${gd.matchups.length ? `<div class="grid g2">${cards}</div>${projNote}` : `<div class="panel"><h3>No matchups yet</h3><p class="muted">Sleeper hasn't posted matchups for week ${gd.week}. ${s.league.status !== "in_season" ? "The league isn't in season right now; check History and Dynasty." : ""}</p></div>`}`;
 }
 
@@ -1264,8 +1320,9 @@ function section(id, title, sub, html) {
 }
 
 function viewStories() {
+  if (STATE.recap != null) return viewRecap(STATE.recap);
   const gd = STATE.gd, odds = STATE.odds, s = M.cur, S = buildStories(gd, odds);
-  const out = [];
+  const out = [recapTeaser()];
 
   // This week
   if (gd && gd.matchups.length && !gd.isPast) {
@@ -1716,6 +1773,247 @@ function renderTicker() {
   el.dataset.sig = html; el.hidden = false;
   const len = items.reduce((a, i) => a + i.text.length + 20, 0);
   el.innerHTML = `<span class="tk-label"><span class="dot live"></span>Live wire</span><div class="tk-track"><div class="tk-move" style="--dur:${Math.max(25, Math.round(len * 0.22))}s">${html}<span class="tk-sep" aria-hidden="true">•</span><span class="tk-dup" aria-hidden="true" inert>${html}<span class="tk-sep">•</span></span></div></div>`;
+}
+
+/* ---------------- weekly recap ----------------
+   Rebuilds each completed matchup game window by game window: a player's points land when his NFL game
+   ends, everything not yet played counts at its pre-game projection. That gives a win-probability path
+   for every matchup, which drives the swing charts, comebacks and heartbreakers. */
+const ELIG = { QB: ["QB"], RB: ["RB"], WR: ["WR"], TE: ["TE"], K: ["K"], DEF: ["DEF"], FLEX: ["RB", "WR", "TE"], WRRB_FLEX: ["WR", "RB"], REC_FLEX: ["WR", "TE"], SUPER_FLEX: ["QB", "RB", "WR", "TE"] };
+function optimalPts(slots, roster, ptsMap) {
+  const pool = roster.map(pid => ({ pid, pos: ppos(pid), pts: +ptsMap[pid] || 0 })).sort((a, b) => b.pts - a.pts);
+  const used = new Set(); let tot = 0;
+  const order = slots.filter(sl => ELIG[sl]).sort((x, y) => ELIG[x].length - ELIG[y].length);
+  for (const sl of order) { const c = pool.find(p => !used.has(p.pid) && ELIG[sl].includes(p.pos)); if (c) { used.add(c.pid); tot += c.pts; } }
+  return tot;
+}
+function windowLabel(d) {
+  if (!d) return "Games";
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(d).map(p => [p.type, p.value]));
+  return `${parts.weekday} ${parts.hour}${parts.minute === "00" ? "" : ":" + parts.minute}${(parts.dayPeriod || "").toLowerCase().startsWith("a") ? "a" : "p"}`;
+}
+
+async function buildRecap(s, week) {
+  const entries = s.raw.weeks[week] || [];
+  const [proj, clock, sched] = await Promise.all([loadProjections(s, week), loadGameClock(s, week, false), loadSchedule(s, false)]);
+  const kick = {};
+  if (clock) for (const [t, c] of Object.entries(clock)) if (c.t) kick[t] = c.t;
+  if (!Object.keys(kick).length && sched?.[week]) for (const [t, g] of Object.entries(sched[week])) if (g?.t) kick[t] = g.t;
+  const times = [...new Set(Object.values(kick).map(d => +d))].sort((a, b) => a - b);
+  let wins = [];
+  for (const t of times) if (!wins.length || t - wins[wins.length - 1].start > 45 * 60e3) wins.push({ start: t });
+  const hasTimes = wins.length > 1;
+  if (!wins.length) wins = [{ start: null }];
+  const winOf = t => { let k = 0; wins.forEach((w, i) => { if (w.start != null && t >= w.start) k = i; }); return k; };
+  const teamWin = Object.fromEntries(Object.entries(kick).map(([t, d]) => [t, winOf(+d)]));
+  const W = wins.length, labels = ["Kickoff", ...wins.map(w => w.start == null ? "Final" : windowLabel(new Date(w.start)))];
+
+  const sides = {};
+  for (const e of entries) {
+    if (e.matchup_id == null) continue;
+    const st = e.starters || [];
+    const players = st.map((pid, i) => {
+      const real = pid && pid !== "0", actual = +(e.starters_points?.[i] ?? e.players_points?.[pid] ?? 0) || 0;
+      const nfl = pteam(pid);
+      let win = !real ? -1 : nfl in teamWin ? teamWin[nfl] : (actual > 0 || !hasTimes ? W - 1 : -1);
+      return { pid, slot: s.slots[i] || "", actual, proj: real ? (proj[pid] ?? s.pAvg[pid] ?? 0) : 0, win };
+    });
+    const roster = e.players || [];
+    const act = sum(players.map(p => p.actual));
+    sides[e.roster_id] = {
+      rid: e.roster_id, oid: s.ownerOf[e.roster_id], mid: e.matchup_id, pts: ptsOf(e), proj: sum(players.map(p => p.proj)), players,
+      bench: roster.filter(p => !st.includes(p)).map(pid => ({ pid, actual: +(e.players_points?.[pid] || 0) })),
+      optimal: Math.max(act, optimalPts(s.slots, roster, e.players_points || {}))
+    };
+  }
+  const cp = (sd, k) => { let sc = 0, rem = 0, v = 0; for (const p of sd.players) { if (p.win < k) sc += p.actual; else { rem += p.proj; v += (0.55 * p.proj + 2) ** 2; } } return { sc, mean: sc + rem, v }; };
+  const by = {}; for (const sd of Object.values(sides)) (by[sd.mid] ||= []).push(sd);
+  const mus = Object.values(by).filter(p => p.length === 2).map(([a, b]) => {
+    const cps = range(0, W).map(k => { const A = cp(a, k), B = cp(b, k), v = A.v + B.v; return { pa: v > 0.01 ? Phi((A.mean - B.mean) / Math.sqrt(v)) : (A.sc > B.sc ? 1 : A.sc < B.sc ? 0 : 0.5), sa: A.sc, sb: B.sc }; });
+    Object.assign(cps[W], { sa: a.pts, sb: b.pts, pa: a.pts > b.pts ? 1 : a.pts < b.pts ? 0 : 0.5 });
+    const winner = a.pts >= b.pts ? a : b, loser = winner === a ? b : a, wa = winner === a;
+    const pW = k => wa ? cps[k].pa : 1 - cps[k].pa;
+    let minK = 0, maxK = 0;
+    for (let k = 0; k < W; k++) { if (pW(k) < pW(minK)) minK = k; if (pW(k) > pW(maxK)) maxK = k; }
+    let swK = 1, swD = 0;
+    for (let k = 1; k <= W; k++) { const d = cps[k].pa - cps[k - 1].pa; if (Math.abs(d) > Math.abs(swD)) { swD = d; swK = k; } }
+    const gainer = swD >= 0 ? a : b;
+    const hero = [...gainer.players].filter(p => p.win === swK - 1).sort((x, y) => y.actual - x.actual)[0];
+    let flips = 0; for (let k = 1; k <= W; k++) if ((cps[k].pa - 0.5) * (cps[k - 1].pa - 0.5) < 0) flips++;
+    return { mid: a.mid, a, b, cps, winner, loser, pre: pW(0), minK, minP: pW(minK), loserMaxK: minK, loserMaxP: 1 - pW(minK), swK, swD, gainer, hero, flips, margin: winner.pts - loser.pts };
+  });
+  return { week, labels, hasTimes, mus, sides, W };
+}
+
+/* ---- charts ---- */
+function wpChart(mu, labels, id, { w = 680, h = 240, mini = false } = {}) {
+  const n = mu.cps.length, L = mini ? 4 : 46, R = mini ? 4 : 14, T = mini ? 6 : 16, B = mini ? 6 : 30;
+  const X = i => L + (n === 1 ? 0 : i * (w - L - R) / (n - 1)), Y = p => T + (1 - p) * (h - T - B), mid = Y(0.5);
+  const line = mu.cps.map((c, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(c.pa).toFixed(1)}`).join("");
+  const area = `${line}L${X(n - 1).toFixed(1)},${mid}L${X(0).toFixed(1)},${mid}Z`;
+  const ca = color(mu.a.oid), cb = color(mu.b.oid);
+  const band = !mini && mu.swK ? `<rect x="${X(mu.swK - 1)}" y="${T}" width="${X(mu.swK) - X(mu.swK - 1)}" height="${h - T - B}" fill="var(--accent)" opacity=".08"/>` : "";
+  const note = !mini && mu.hero && Math.abs(mu.swD) >= 0.12 ? (() => { const x = (X(mu.swK - 1) + X(mu.swK)) / 2, anchor = x > w * 0.75 ? "end" : x < w * 0.25 ? "start" : "middle"; return `<text x="${x}" y="${T + 12}" text-anchor="${anchor}" style="fill:var(--fg);font-weight:600">${esc(pname(mu.hero.pid))} +${fmt(mu.hero.actual)}</text>`; })() : "";
+  const dots = mu.cps.map((c, i) => `<circle cx="${X(i)}" cy="${Y(c.pa)}" r="${mini ? 2.5 : 4}" fill="var(--surface)" stroke="var(--fg)" stroke-width="2"/><rect x="${X(i) - 14}" y="${T}" width="28" height="${h - T - B}" fill="transparent"><title>${esc(labels[i])}: ${esc(teamName(mu.a.oid))} ${pct(c.pa)} · ${fmt(c.sa)}-${fmt(c.sb)}</title></rect>`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" class="${mini ? "wp-mini" : "wp-big"}" role="img" aria-label="Win probability for ${esc(teamName(mu.a.oid))} across the week">
+    <defs><clipPath id="${id}-t"><rect x="0" y="0" width="${w}" height="${mid}"/></clipPath><clipPath id="${id}-b"><rect x="0" y="${mid}" width="${w}" height="${h}"/></clipPath></defs>
+    ${band}
+    ${mini ? "" : [0, 0.25, 0.5, 0.75, 1].map(p => `<line x1="${L}" x2="${w - R}" y1="${Y(p)}" y2="${Y(p)}" stroke="var(--line)" ${p === 0.5 ? "" : 'stroke-dasharray="2 4"'}/><text x="${L - 8}" y="${Y(p) + 4}" text-anchor="end">${Math.round(p * 100)}%</text>`).join("")}
+    ${mini ? `<line x1="${L}" x2="${w - R}" y1="${mid}" y2="${mid}" stroke="var(--line)"/>` : ""}
+    <path d="${area}" fill="${ca}" opacity=".35" clip-path="url(#${id}-t)"/><path d="${area}" fill="${cb}" opacity=".35" clip-path="url(#${id}-b)"/>
+    <path d="${line}" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}${note}
+    ${mini ? "" : labels.map((l, i) => `<text x="${X(i)}" y="${h - 9}" text-anchor="${i === 0 ? "start" : i === n - 1 ? "end" : "middle"}">${esc(l)}</text>`).join("")}
+  </svg>`;
+}
+
+/* ---- copy ---- */
+const R_LEAD_HI = [(T, x) => `${T} owned the week with ${x}.`, (T, x) => `Top of the board: ${T}, ${x} points.`, (T, x) => `${T} put up ${x}, the best score in the league.`, (T, x) => `${T} dropped ${x} and spent the rest of the week reminding everyone.`];
+const R_COMEBACK = [
+  (W, L, p, at, h) => `${W} was down to ${p} after ${at} and still beat ${L}.${h}`,
+  (W, L, p, at, h) => `At ${at}, ${W} had a ${p} chance. ${L} had already started celebrating.${h}`,
+  (W, L, p, at, h) => `${W} climbed out of a ${p} hole (after ${at}) to beat ${L}.${h}`
+];
+const R_UPSET = [
+  (W, L, p) => `${W} came in at ${p} to win and walked out with a W over ${L}.`,
+  (W, L, p) => `The projections gave ${W} a ${p} shot against ${L}. The projections can sit down.`,
+  (W, L, p) => `${W} (${p} before kickoff) knocked off ${L}.`
+];
+const R_BLOW = [
+  (W, L, m) => `${W} beat ${L} by ${m}. ${L} has been asked to submit a written statement.`,
+  (W, L, m) => `${W} by ${m} over ${L}. Mercy rule requested, mercy rule denied.`,
+  (W, L, m) => `${m}-point demolition: ${W} over ${L}.`
+];
+const R_HEART = [
+  (L, W, p, at) => `${L} was ${p} to win after ${at}. Then it all fell apart against ${W}.`,
+  (L, W, p, at) => `${L} hit ${p} after ${at} and lost anyway. ${W} sends its regards.`
+];
+const R_CLOSE = [(W, L, m) => `${W} edged ${L} by ${m}. That's one dropped pass.`, (W, L, m) => `${W} over ${L} by ${m}. Somebody's kicker is getting a strongly worded text.`, (W, L, m) => `Decided by ${m}: ${W} over ${L}.`];
+const R_MINI = {
+  comeback: [(W, p) => `${W} rallied from ${p}.`, (W, p) => `${W} came back from ${p}. Wild.`],
+  wire: [W => `${W} led wire to wire.`, W => `${W} was never really threatened.`, W => `Business as usual for ${W}.`],
+  flip: [(W, n) => `The lead changed hands ${n} times before ${W} held on.`, (W, n) => `${n} lead changes. ${W} survived the chaos.`],
+  late: [(W, at) => `${W} won it in the ${at} window.`, (W, at) => `${W} didn't take control until ${at}.`]
+};
+
+function recapLeadText(d) {
+  const all = Object.values(d.sides);
+  const hi = all.reduce((x, y) => y.pts > x.pts ? y : x);
+  const out = [fresh(R_LEAD_HI, d.week + "hi", teamName(hi.oid), fmt(hi.pts))];
+  const cb = d.hasTimes ? [...d.mus].sort((x, y) => x.minP - y.minP)[0] : null;
+  const up = [...d.mus].sort((x, y) => x.pre - y.pre)[0];
+  const bl = [...d.mus].sort((x, y) => y.margin - x.margin)[0];
+  if (cb && cb.minP < 0.3) out.push(fresh(R_COMEBACK, d.week + "cbl", teamName(cb.winner.oid), teamName(cb.loser.oid), pct(cb.minP), d.labels[cb.minK], ""));
+  else if (up && up.pre < 0.4) out.push(fresh(R_UPSET, d.week + "upl", teamName(up.winner.oid), teamName(up.loser.oid), pct(up.pre)));
+  if (bl && bl.margin >= 25) out.push(fresh(R_BLOW, d.week + "bll", teamName(bl.winner.oid), teamName(bl.loser.oid), fmt(bl.margin)));
+  return out.join(" ");
+}
+
+function viewRecap(week) {
+  const s = M.cur;
+  const done = range(1, Math.min(18, s.lastDone === 99 ? 18 : s.lastDone)).filter(w => (s.raw.weeks[w] || []).some(e => ptsOf(e) > 0));
+  if (!done.length) return `<div class="panel"><h3>No completed weeks yet</h3><p class="muted">The first recap lands after week 1 wraps up.</p></div>`;
+  if (!done.includes(week)) week = done[done.length - 1];
+  const picker = `<div class="weeks" role="group" aria-label="Week">${done.map(w => `<a class="wk" href="#recap-${w}"${w === week ? ' aria-current="page"' : ""}>${w}</a>`).join("")}</div>`;
+  const head = `<div class="team-top"><a class="back" href="#stories">← Storylines</a>${picker}</div>`;
+  STATE.recapData ||= {}; STATE.recapLoading ||= {};
+  const d = STATE.recapData[week];
+  if (!d) {
+    if (!STATE.recapLoading[week]) { STATE.recapLoading[week] = true; buildRecap(s, week).then(r => { STATE.recapData[week] = r; }).catch(e => { console.warn(e); STATE.recapData[week] = { error: e.message }; }).finally(() => { if (STATE.view === "stories" && STATE.recap != null) render(); }); }
+    return `${head}<div class="loader"><div class="big">Rolling the tape</div><p class="muted">Rebuilding week ${week} game by game…</p></div>`;
+  }
+  if (d.error) return `${head}<div class="panel err"><h3>Couldn't build this recap</h3><p class="muted">${esc(d.error)}</p></div>`;
+
+  const sides = Object.values(d.sides), mus = d.mus;
+  const resOf = rid => { const m = mus.find(x => x.a.rid === rid || x.b.rid === rid); return !m ? "" : m.winner.rid === rid ? (m.margin === 0 ? "T" : "W") : "L"; };
+  const med = median(sides.map(x => x.pts));
+
+  // scoreboard chart
+  const mx = Math.max(...sides.map(x => Math.max(x.pts, x.proj))) * 1.04 || 1;
+  const board = [...sides].sort((x, y) => y.pts - x.pts).map(x => { const r = resOf(x.rid), diff = x.pts - x.proj;
+    return `<div class="sc-row" title="${esc(teamName(x.oid))}: ${fmt(x.pts)} (projected ${fmt(x.proj)})"><span class="fn">${esc(teamName(x.oid))}</span>
+      <span class="sc-track"><i class="sc-bar" style="width:${x.pts / mx * 100}%;background:${color(x.oid)}"></i><i class="sc-proj" style="left:${x.proj / mx * 100}%"></i><i class="sc-med" style="left:${med / mx * 100}%"></i></span>
+      <span class="mono sc-v">${fmt(x.pts)}</span><span class="mono sc-d ${diff >= 0 ? "up" : "dn"}">${diff >= 0 ? "+" : "−"}${fmt(Math.abs(diff))}</span><i class="r ${r}">${r}</i></div>`; }).join("");
+
+  // featured swing
+  const crazy = m => Math.max(Math.abs(m.swD), m.flips * 0.22, m.minP < 0.5 ? (0.5 - m.minP) * 2 : 0);
+  const feat = d.hasTimes ? [...mus].sort((x, y) => crazy(y) - crazy(x))[0] : null;
+  let featHTML = "";
+  if (feat) {
+    const W = teamName(feat.winner.oid), Lo = teamName(feat.loser.oid), G = teamName(feat.gainer.oid);
+    const heroTxt = feat.hero ? ` ${pname(feat.hero.pid)} posted ${fmt(feat.hero.actual)} in that window.` : "";
+    const story = feat.minP < 0.3 ? fresh(R_COMEBACK, d.week + "feat", W, Lo, pct(feat.minP), d.labels[feat.minK], heroTxt)
+      : `The ${d.labels[feat.swK]} window moved ${Math.round(Math.abs(feat.swD) * 100)} points of win probability toward ${G}.${heroTxt}${feat.flips >= 2 ? ` The lead flipped ${plural(feat.flips, "time")} in all.` : ""}`;
+    featHTML = `<div class="panel feat"><div class="feat-h"><div><div class="eyebrow">Swing of the week</div><h3>${esc(teamName(feat.a.oid))} ${fmt(feat.a.pts)}, ${esc(teamName(feat.b.oid))} ${fmt(feat.b.pts)}</h3><p class="feat-story">${esc(story)}</p></div>
+      <div class="legend"><span><i style="background:${color(feat.a.oid)}"></i>${esc(teamName(feat.a.oid))} favored</span><span><i style="background:${color(feat.b.oid)}"></i>${esc(teamName(feat.b.oid))} favored</span></div></div>
+      <div class="chart-scroll">${wpChart(feat, d.labels, `wpf${d.week}`)}</div>
+      <p class="note" style="margin:6px 0 0">Win probability for ${esc(teamName(feat.a.oid))} after each NFL game window. Above the line, ${esc(teamName(feat.a.oid))} was favored; below it, ${esc(teamName(feat.b.oid))}. Hover a point for the score at that moment.</p></div>`;
+  }
+
+  // small multiples
+  const minis = d.hasTimes ? `<div class="mms">${mus.map(m => {
+    const W = teamName(m.winner.oid);
+    const line = m.minP < 0.3 ? fresh(R_MINI.comeback, d.week + "mc" + m.mid, W, pct(m.minP)) : m.flips >= 2 ? fresh(R_MINI.flip, d.week + "mf" + m.mid, W, m.flips) : m.pre >= 0.5 && m.minP >= 0.5 ? fresh(R_MINI.wire, d.week + "mw" + m.mid, W) : fresh(R_MINI.late, d.week + "ml" + m.mid, W, d.labels[m.swK]);
+    return `<a class="mm" href="#match-${d.week}-${m.mid}"><div class="mm-h"><span><span class="chip" style="background:${color(m.a.oid)}"></span>${esc(teamName(m.a.oid))} <b class="mono">${fmt(m.a.pts)}</b></span><span><b class="mono">${fmt(m.b.pts)}</b> ${esc(teamName(m.b.oid))}<span class="chip" style="background:${color(m.b.oid)};margin:0 0 0 6px"></span></span></div>${wpChart(m, d.labels, `wpm${d.week}-${m.mid}`, { w: 300, h: 90, mini: true })}<div class="mm-q">${esc(line)}</div></a>`;
+  }).join("")}</div>` : `<p class="note">Game-by-game swings need NFL kickoff times, which weren't available for this week.</p>`;
+
+  // awards
+  const A = [];
+  const up = [...mus].sort((x, y) => x.pre - y.pre)[0];
+  if (up && up.pre < 0.45) A.push({ tone: "hot", oid: up.winner.oid, kicker: "Upset of the week", head: `${teamName(up.winner.oid)} Shocks ${teamName(up.loser.oid)}`, body: fresh(R_UPSET, d.week + "up", teamName(up.winner.oid), teamName(up.loser.oid), pct(up.pre)), stat: `${fmt(up.winner.pts)}-${fmt(up.loser.pts)}` });
+  const cb = d.hasTimes ? [...mus].sort((x, y) => x.minP - y.minP)[0] : null;
+  if (cb && cb.minP < 0.3) A.push({ tone: "hot", oid: cb.winner.oid, kicker: "Comeback of the week", head: fresh(["Never Say Never", "Back From the Dead", "Reports of Their Death Were Exaggerated"], d.week + "cbh"), body: fresh(R_COMEBACK, d.week + "cb", teamName(cb.winner.oid), teamName(cb.loser.oid), pct(cb.minP), d.labels[cb.minK], ""), stat: `Low point: ${pct(cb.minP)} after ${d.labels[cb.minK]}` });
+  const hb = d.hasTimes ? [...mus].filter(m => m !== cb).sort((x, y) => x.minP - y.minP)[0] : null;
+  if (hb && hb.minP < 0.3) A.push({ tone: "cold", oid: hb.loser.oid, kicker: "Heartbreaker", head: fresh(["So Close, Yet So Far", "It Was Right There", "Pain"], d.week + "hbh"), body: fresh(R_HEART, d.week + "hb", teamName(hb.loser.oid), teamName(hb.winner.oid), pct(1 - hb.minP), d.labels[hb.minK]), stat: `Final: ${fmt(hb.loser.pts)}-${fmt(hb.winner.pts)}` });
+  const bl = [...mus].sort((x, y) => y.margin - x.margin)[0];
+  if (bl) A.push({ tone: "cold", oid: bl.winner.oid, kicker: "Blowout of the week", head: fresh(["Not Close. Not Even a Little.", "Call It Off", "The Massacre"], d.week + "blh"), body: fresh(R_BLOW, d.week + "bl", teamName(bl.winner.oid), teamName(bl.loser.oid), fmt(bl.margin)), stat: `${fmt(bl.winner.pts)}-${fmt(bl.loser.pts)}` });
+  const cl = [...mus].sort((x, y) => x.margin - y.margin)[0];
+  if (cl && cl !== bl && cl.margin < 10) A.push({ tone: "hot", oid: cl.winner.oid, kicker: "Nail-biter", head: fresh(["Photo Finish", "By a Whisker", "Cardiac Classic"], d.week + "clh"), body: fresh(R_CLOSE, d.week + "cl", teamName(cl.winner.oid), teamName(cl.loser.oid), fmt(cl.margin, 2)), stat: `${fmt(cl.winner.pts)}-${fmt(cl.loser.pts)}` });
+  const losers = mus.map(m => m.loser).sort((x, y) => y.pts - x.pts), winners = mus.map(m => m.winner).sort((x, y) => x.pts - y.pts);
+  if (losers[0] && losers[0].pts > med) A.push({ tone: "cold", oid: losers[0].oid, kicker: "Wrong place, wrong time", head: "Unluckiest Loss", body: `${teamName(losers[0].oid)} scored ${fmt(losers[0].pts)}, enough to beat ${sides.filter(x => x.pts < losers[0].pts).length} teams. Just not the one across from them.`, stat: `${fmt(losers[0].pts)} pts · league median ${fmt(med)}` });
+  if (winners[0] && winners[0].pts < med) A.push({ tone: "hot", oid: winners[0].oid, kicker: "Got away with one", head: "Luckiest Win", body: `${teamName(winners[0].oid)} won with ${fmt(winners[0].pts)}, which would have lost to ${sides.filter(x => x.pts > winners[0].pts).length} teams. Buy a lottery ticket.`, stat: `${fmt(winners[0].pts)} pts · league median ${fmt(med)}` });
+  const eff = sides.map(x => ({ x, left: x.optimal - x.pts, e: x.optimal ? x.pts / x.optimal : 1 })).sort((p, q) => q.e - p.e);
+  if (eff.length) {
+    const best = eff[0], worst = eff[eff.length - 1];
+    A.push({ tone: "hot", oid: best.x.oid, kicker: "Coach of the week", head: best.left < 0.5 ? "The Perfect Lineup" : "Set It and Nailed It", body: best.left < 0.5 ? `${teamName(best.x.oid)} started the best possible lineup. Not a single point left on the bench.` : `${teamName(best.x.oid)} got ${pct(best.e)} of their best possible score. Somebody did their homework.`, stat: `${fmt(best.x.pts)} of a possible ${fmt(best.x.optimal)}` });
+    if (worst !== best && worst.left >= 5) A.push({ tone: "cold", oid: worst.x.oid, kicker: "Bench warmer award", head: fresh(["Points Left in the Fridge", "The Wrong Guys", "Lineup Malpractice"], d.week + "bwh"), body: `${teamName(worst.x.oid)} left ${fmt(worst.left)} points on the bench. The optimal lineup would have scored ${fmt(worst.x.optimal)}.${(() => { const m = mus.find(mm => mm.a.rid === worst.x.rid || mm.b.rid === worst.x.rid); return m && m.loser.rid === worst.x.rid && worst.x.optimal > m.winner.pts ? " That would have won the matchup." : ""; })()}`, stat: `Started ${fmt(worst.x.pts)} · possible ${fmt(worst.x.optimal)}` });
+  }
+  let blunder = null;
+  for (const x of sides) for (const b of x.bench) { const pos = ppos(b.pid); const st = x.players.filter(p => p.pid && p.pid !== "0" && ppos(p.pid) === pos).sort((p, q) => p.actual - q.actual)[0]; if (st && b.actual - st.actual > (blunder?.d ?? 6)) blunder = { x, b, st, d: b.actual - st.actual }; }
+  if (blunder) A.push({ tone: "cold", oid: blunder.x.oid, kicker: "Bench blunder", head: `${pname(blunder.b.pid)} Deserved Better`, body: `${teamName(blunder.x.oid)} benched ${pname(blunder.b.pid)} (${fmt(blunder.b.actual)}) and started ${pname(blunder.st.pid)} (${fmt(blunder.st.actual)}). That's a ${fmt(blunder.d)}-point decision.`, stat: "" });
+
+  // performers
+  const starters = sides.flatMap(x => x.players.filter(p => p.pid && p.pid !== "0").map(p => ({ ...p, oid: x.oid })));
+  const top = [...starters].sort((a, b) => b.actual - a.actual).slice(0, 8), tmax = Math.max(1, top[0]?.actual || 1);
+  const topHTML = top.map((p, i) => `<div class="perf"><span class="mono muted perf-n">${i + 1}</span>${headshot(p.pid)}<div style="min-width:0"><div class="hpn">${esc(pname(p.pid))}</div><div class="hpm">${esc(ppos(p.pid))} · ${esc(teamName(p.oid))}</div></div><span class="perf-bar"><i style="width:${p.actual / tmax * 100}%;background:${posColor(p.pid)}"></i></span><span class="mono perf-v">${fmt(p.actual)}<small class="${p.actual - p.proj >= 0 ? "up" : "dn"}">${p.actual - p.proj >= 0 ? "+" : "−"}${fmt(Math.abs(p.actual - p.proj))}</small></span></div>`).join("");
+  const busts = [...starters].filter(p => p.proj >= 10).sort((a, b) => (a.actual - a.proj) - (b.actual - b.proj)).slice(0, 4);
+  const bustHTML = busts.map(p => `<div class="perf"><span></span>${headshot(p.pid)}<div style="min-width:0"><div class="hpn">${esc(pname(p.pid))}</div><div class="hpm">${esc(ppos(p.pid))} · ${esc(teamName(p.oid))}</div></div><span class="mono muted perf-proj" style="font-size:12px">proj ${fmt(p.proj)}</span><span class="mono perf-v">${fmt(p.actual)}<small class="dn">−${fmt(p.proj - p.actual)}</small></span></div>`).join("");
+
+  return `${head}
+    <div class="section-h"><div><div class="eyebrow">${s.year} · Week ${week} in review</div><h2>The Week ${week} Tape</h2></div></div>
+    <p class="recap-lead">${esc(recapLeadText(d))}</p>
+    <div class="stack" style="gap:36px;margin-top:20px">
+      ${section("rc-board", "The Scoreboard", "Every team's score against its pre-game projection",
+        `<div class="panel"><div class="sc">${board}</div><div class="legend" style="margin-top:12px"><span><i class="lg-proj"></i>Pre-game projection</span><span><i class="lg-med"></i>League median (${fmt(med)})</span><span>± vs projection</span></div></div>`)}
+      ${featHTML ? section("rc-swing", "Swing of the Week", "The matchup that moved the most", featHTML) : ""}
+      ${section("rc-all", "Every Matchup, Window by Window", "Win probability after each NFL game window. Click one for the box score.", minis)}
+      ${section("rc-awards", "The Awards", "Honors, dishonors and lineup malpractice", `<div class="grid g3">${A.map(storyCard).join("")}</div>`)}
+      ${section("rc-perf", "Who Showed Up", "Top starters this week, and the ones who didn't", `<div class="grid g2"><div class="panel"><h4 class="mini">Top performers</h4><div class="perfs">${topHTML}</div><p class="note" style="margin:8px 0 0">Small number: points above or below projection.</p></div><div class="panel"><h4 class="mini">Biggest busts</h4><div class="perfs">${bustHTML || '<p class="muted">Everyone projected for 10+ showed up. Miraculous.</p>'}</div></div></div>`)}
+    </div>`;
+}
+
+function recapTeaser() {
+  const s = M.cur, last = range(1, Math.min(18, s.lastDone === 99 ? 18 : s.lastDone)).filter(w => (s.raw.weeks[w] || []).some(e => ptsOf(e) > 0)).pop();
+  if (!last) return "";
+  const games = s.games.filter(g => g.week === last && g.final);
+  if (!games.length) return "";
+  const flat = games.flatMap(g => [g.a, g.b]), hi = flat.reduce((x, y) => y.pts > x.pts ? y : x);
+  const bl = games.reduce((x, y) => Math.abs(y.a.pts - y.b.pts) > Math.abs(x.a.pts - x.b.pts) ? y : x), cl = games.reduce((x, y) => Math.abs(y.a.pts - y.b.pts) < Math.abs(x.a.pts - x.b.pts) ? y : x);
+  const wl = g => g.a.pts >= g.b.pts ? [g.a, g.b] : [g.b, g.a];
+  const [bw, bL] = wl(bl), [cw, cL] = wl(cl);
+  return `<a class="teaser" href="#recap-${last}"><div><div class="eyebrow">Week ${last} in review</div><h3>The Week ${last} Tape</h3>
+    <ul><li>High score: <b>${esc(teamName(hi.oid))}</b>, ${fmt(hi.pts)}</li><li>Blowout: <b>${esc(teamName(bw.oid))}</b> by ${fmt(bw.pts - bL.pts)} over ${esc(teamName(bL.oid))}</li>${cl !== bl ? `<li>Closest: <b>${esc(teamName(cw.oid))}</b> by ${fmt(cw.pts - cL.pts, 2)} over ${esc(teamName(cL.oid))}</li>` : ""}</ul></div>
+    <span class="teaser-cta">Swing charts, upsets and awards <span aria-hidden="true">→</span></span></a>`;
 }
 
 /* ---------------- draft pick ledger (shared) ---------------- */
@@ -2268,13 +2566,14 @@ async function boot() {
 
 function route() {
   const v = location.hash.slice(1);
-  const tm = v.match(/^team-(\d+)$/), mm = v.match(/^match-(\d+)-(\d+)$/);
-  const prev = STATE.view + STATE.team + "/" + STATE.match;
+  const tm = v.match(/^team-(\d+)$/), mm = v.match(/^match-(\d+)-(\d+)$/), rm = v.match(/^recap-(\d+)$/);
+  const prev = STATE.view + STATE.team + "/" + STATE.match + "/" + STATE.recap;
+  STATE.recap = rm ? +rm[1] : null;
   STATE.team = tm ? +tm[1] : null;
   STATE.match = mm ? +mm[2] : null;
   if (mm && M && +mm[1] !== STATE.week) { STATE.week = +mm[1]; refreshGameday(false).then(() => { if (STATE.match != null) render(); }); }
-  STATE.view = tm ? "franchises" : mm ? "gameday" : ["gameday", "stories", "outlook", "history", "dynasty", "franchises", "draft"].includes(v) ? v : "gameday";
-  if (M) { render(); if (prev !== STATE.view + STATE.team + "/" + STATE.match) window.scrollTo(0, 0); }
+  STATE.view = tm ? "franchises" : mm ? "gameday" : rm ? "stories" : ["gameday", "stories", "outlook", "history", "dynasty", "franchises", "draft"].includes(v) ? v : "gameday";
+  if (M) { render(); if (prev !== STATE.view + STATE.team + "/" + STATE.match + "/" + STATE.recap) window.scrollTo(0, 0); }
 }
 window.addEventListener("hashchange", route);
 $("#tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) location.hash = t.dataset.v; });
