@@ -756,6 +756,23 @@ async function loadSchedule(season, live) {
   return Object.keys(byWeek).length ? byWeek : null;
 }
 
+// Kickoff times, game clocks and NFL scores from ESPN's public scoreboard (optional source)
+const ESPN_FIX = { WSH: "WAS" };
+async function loadGameClock(season, week, live) {
+  const data = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season.year}&seasontype=2&week=${week}`, { ttl: live ? 30e3 : 30 * MIN, optional: true, source: "clock" });
+  const out = {};
+  for (const ev of data?.events || []) {
+    const c = ev.competitions?.[0], st = ev.status?.type || {};
+    const teams = (c?.competitors || []).map(x => ({ ab: ESPN_FIX[x.team?.abbreviation] || x.team?.abbreviation, home: x.homeAway === "home", score: x.score }));
+    if (teams.length !== 2) continue;
+    const t = ev.date ? new Date(ev.date) : null;
+    const state = st.state === "in" ? "live" : st.state === "post" ? "done" : "pre";
+    const clock = state === "live" ? (st.shortDetail || `Q${ev.status?.period} ${ev.status?.displayClock || ""}`).replace(" - ", " ") : "";
+    for (const [me, op] of [[teams[0], teams[1]], [teams[1], teams[0]]]) out[me.ab] = { opp: op.ab, home: me.home, t: t && !isNaN(t) ? t : null, state, clock, my: me.score, their: op.score };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 async function gamedayModel(season, week, { fresh = false } = {}) {
   const base = `${API}/league/${season.league.league_id}`;
   let entries = season.raw.weeks[week] || [];
@@ -765,7 +782,15 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
     isPast ? Promise.resolve({}) : loadProjections(season, week),
     loadSchedule(season, fresh && !isPast)
   ]);
-  const teamStatus = sched?.[week] || null;
+  const clock = await loadGameClock(season, week, fresh && !isPast);
+  let teamStatus = sched?.[week] || null;
+  if (clock) {   // merge ESPN times/clocks in; ESPN also fills in if Sleeper's schedule is unavailable
+    teamStatus = { ...(teamStatus || {}) };
+    for (const [t, c] of Object.entries(clock)) {
+      const g = teamStatus[t] || { status: c.state, opp: c.opp, home: c.home };
+      teamStatus[t] = { ...g, t: c.t || g.t, dateOnly: c.t ? false : g.dateOnly, clock: c.clock, my: c.my, their: c.their, status: g.status || c.state };
+    }
+  }
   let anyLive = false;
   const sides = {};
   for (const e of entries) {
@@ -1442,14 +1467,17 @@ const headshot = pid => {
 function kickoffText(g) {
   if (!g?.t) return "";
   const o = { timeZone: "America/New_York", weekday: "short" };
-  return g.dateOnly ? g.t.toLocaleDateString("en-US", o) : g.t.toLocaleString("en-US", { ...o, hour: "numeric", minute: "2-digit" }).replace(":00", "");
+  return g.dateOnly ? g.t.toLocaleDateString("en-US", o) : g.t.toLocaleString("en-US", { ...o, hour: "numeric", minute: "2-digit" }) + " ET";
 }
 function oppLine(p, isPast) {
   const g = p.game;
   if (g === "bye") return `<span class="bye">BYE WEEK</span>`;
   if (!g) return isPast ? "" : `<span class="muted">${statusWord(p.status)}</span>`;
   const opp = `<b>${g.home ? "vs" : "@"} ${esc(g.opp)}</b>`;
-  const when = isPast || p.status === "done" ? "Final" : p.status === "live" ? '<span class="livetxt">Live</span>' : (kickoffText(g) || "Upcoming");
+  const score = g.my != null && g.their != null && g.my !== "" ? ` · ${esc(g.my)}-${esc(g.their)}` : "";
+  const when = isPast || p.status === "done" ? `Final${score}`
+    : p.status === "live" ? `<span class="livetxt">${esc(g.clock || "Live")}</span>${score}`
+    : (kickoffText(g) || "Upcoming");
   return `${opp} · ${when}`;
 }
 function playerForm(pid) {
@@ -2022,7 +2050,7 @@ function render() {
   renderFooter();
 }
 function renderFooter() {
-  const lbl = { sleeper: "Sleeper league", projections: "Weekly projections", schedule: "NFL game status", values: "Dynasty values" };
+  const lbl = { sleeper: "Sleeper league", projections: "Weekly projections", schedule: "NFL game status", clock: "Game times", values: "Dynasty values" };
   $("#sources").innerHTML = Object.entries(lbl).filter(([k]) => k in SOURCES).map(([k, v]) => `<span class="${SOURCES[k] ? "" : "off"}" title="${SOURCES[k] ? "Loaded" : "Unavailable right now"}">${v}</span>`).join("");
   $("#updated").textContent = STATE.updated ? `Updated ${STATE.updated.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
   const live = STATE.gd?.anyLive;
