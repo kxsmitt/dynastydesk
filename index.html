@@ -930,7 +930,7 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
     teamStatus = { ...(teamStatus || {}) };
     for (const [t, c] of Object.entries(clock)) {
       const g = teamStatus[t] || { status: c.state, opp: c.opp, home: c.home };
-      teamStatus[t] = { ...g, t: c.t || g.t, dateOnly: c.t ? false : g.dateOnly, clock: c.clock, my: c.my, their: c.their, status: g.status || c.state };
+      teamStatus[t] = { ...g, t: c.t || g.t, dateOnly: c.t ? false : g.dateOnly, clock: c.clock, my: c.my, their: c.their, status: c.state || g.status };
     }
   }
   let anyLive = false;
@@ -945,6 +945,7 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
       if (isPast) status = "done";
       else if (teamStatus) status = game && game !== "bye" ? game.status : "done";
       else status = actual !== 0 ? "live" : "pre";
+      if (!isPast && status === "pre" && actual !== 0) status = "live";
       if (status === "live" && slot !== "BN") anyLive = true;
       const remain = status === "pre" ? p : status === "live" ? Math.max(0, p - actual) * 0.6 : 0;
       const sdv = status === "pre" ? 0.55 * p + 2 : status === "live" ? 0.4 * remain + 1 : 0;
@@ -1735,11 +1736,14 @@ function viewMatch(s, gd, mid) {
   const n = Math.max(a.players.length, b.players.length);
   const rows = range(0, n - 1).map(i => {
     const pa = a.players[i], pb = b.players[i];
-    const aw = pa && pb && (pa.status !== "pre" || pb.status !== "pre") && pa.actual > pb.actual, bw = pa && pb && (pa.status !== "pre" || pb.status !== "pre") && pb.actual > pa.actual;
+    const fin = pa && pb && (isPast || (pa.status === "done" && pb.status === "done"));
+    const aw = fin && pa.actual > pb.actual, bw = fin && pb.actual > pa.actual;
     return `<div class="hrow">${h2hCell(pa, "l", isPast, aw)}<div class="hslot">${esc(slotLabel(pa?.slot || pb?.slot || ""))}</div>${h2hCell(pb, "r", isPast, bw)}</div>`;
   }).join("");
-  const slotsWon = x => { const o = x === a ? b : a; return x.players.filter((p, i) => o.players[i] && p.actual > o.players[i].actual).length; };
-  const left = x => x.players.filter(p => p.status === "pre" && p.pid && p.pid !== "0").length, playing = x => x.players.filter(p => p.status === "live").length;
+  const real = p => p && p.pid && p.pid !== "0";
+  const decided = range(0, n - 1).filter(i => (isPast || (a.players[i]?.status === "done" || !real(a.players[i])) && (b.players[i]?.status === "done" || !real(b.players[i]))) && (real(a.players[i]) || real(b.players[i])));
+  const slotsWon = x => { const o = x === a ? b : a; return decided.filter(i => (x.players[i]?.actual || 0) > (o.players[i]?.actual || 0)).length; };
+  const left = x => x.players.filter(p => p.status === "pre" && real(p)).length, playing = x => x.players.filter(p => p.status === "live" && real(p)).length;
   const benchCol = x => {
     const list = [...x.bench].sort((p, q) => q.actual - p.actual || (POS_ORDER[ppos(p.pid)] || 9) - (POS_ORDER[ppos(q.pid)] || 9));
     const tot = sum(list.map(p => p.actual));
@@ -1753,7 +1757,7 @@ function viewMatch(s, gd, mid) {
       <div class="wp" style="margin:14px 0 0"><span style="width:${mu.pA * 100}%;background:${color(a.oid)}"></span><span style="width:${(1 - mu.pA) * 100}%;background:${color(b.oid)}"></span></div>
       <div class="wp-l" style="margin:6px 0 0"><span>${isPast ? (a.pts > b.pts ? "WIN" : a.pts < b.pts ? "LOSS" : "TIE") : pct(mu.pA)}</span><span>${isPast ? "" : "win odds"}</span><span>${isPast ? (b.pts > a.pts ? "WIN" : b.pts < a.pts ? "LOSS" : "TIE") : pct(1 - mu.pA)}</span></div>
       <div class="sb-facts">
-        <div><span class="mono">${slotsWon(a)}–${slotsWon(b)}</span> slots won</div>
+        ${decided.length ? `<div><span class="mono">${slotsWon(a)}–${slotsWon(b)}</span> slots won <span class="muted">(of ${decided.length} finished)</span></div>` : ""}
         ${isPast ? "" : `<div><span class="mono">${playing(a)}–${playing(b)}</span> playing now</div><div><span class="mono">${left(a)}–${left(b)}</span> yet to play</div>`}
       </div>
       <p class="blurb" style="border:0;padding:12px 0 0;margin:0">${esc(blurb)}</p>
