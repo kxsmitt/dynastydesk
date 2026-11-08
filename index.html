@@ -524,6 +524,20 @@ details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono)
 .pw-ahead i{display:block;width:100%;background:var(--team);border-radius:2px 2px 0 0;opacity:.85}
 .pw-ahead b{font:500 9px/1 var(--mono);color:var(--muted);margin-top:2px}
 .pw-note{font-size:12px;color:var(--muted);margin-top:4px}
+.pw-rating{font-size:14px;font-weight:600;color:var(--muted)}
+.pw-rating small{font-size:10px;font-weight:500}
+.pw-why{display:flex;flex-wrap:wrap;gap:6px}
+.pw-why span{font-size:11.5px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pw-why span b{font-weight:600;color:var(--fg)}
+.pw-why span.up{border-color:color-mix(in srgb,var(--win) 55%,var(--line))}
+.pw-why span.up b{color:var(--win)}
+.pw-why span.dn{border-color:color-mix(in srgb,var(--loss) 55%,var(--line))}
+.pw-why span.dn b{color:var(--loss)}
+details.pw-method{margin-top:16px}
+details.pw-method summary{cursor:pointer;font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+details.pw-method .note{max-width:80ch}
+details.pw-method ul{padding-left:18px;margin:6px 0}
+details.pw-method li{margin-bottom:6px}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -2339,40 +2353,75 @@ function journeySection() {
    Blends how teams have played (all-play, record, recent form) with how they should play the rest of
    the way (best projected lineup from today's roster, by week), then simulates the rest of the season
    and the playoffs with that forward-looking strength to get title odds. */
-async function buildPower(s, gd) {
+// The season as it stood after week `thru` (standings, scores, all-play), for last week's snapshot
+function seasonAsOf(s, thru) {
+  const rec = {};
+  for (const r of s.standings) rec[r.rid] = { rid: r.rid, oid: r.oid, w: 0, l: 0, t: 0, pf: 0, pa: 0, apW: 0, apL: 0, scores: r.scores.filter(x => x.week <= thru), results: [] };
+  for (const g of s.games.filter(g => !g.post && g.final && g.week <= thru).sort((a, b) => a.week - b.week)) {
+    const A = rec[g.a.rid], B = rec[g.b.rid]; if (!A || !B) continue;
+    A.pf += g.a.pts; A.pa += g.b.pts; B.pf += g.b.pts; B.pa += g.a.pts;
+    if (g.a.pts > g.b.pts) { A.w++; B.l++; A.results.push("W"); B.results.push("L"); } else if (g.a.pts < g.b.pts) { B.w++; A.l++; A.results.push("L"); B.results.push("W"); } else { A.t++; B.t++; A.results.push("T"); B.results.push("T"); }
+  }
+  const byWeek = {}; for (const R of Object.values(rec)) for (const x of R.scores) (byWeek[x.week] ||= []).push(x.pts);
+  for (const R of Object.values(rec)) for (const x of R.scores) { const all = byWeek[x.week]; R.apW += all.filter(p => p < x.pts).length; R.apL += all.filter(p => p > x.pts).length; if (s.medianGame) { const m = median(all); if (x.pts > m) R.w++; else if (x.pts < m) R.l++; else R.t++; } }
+  const standings = Object.values(rec).sort((a, b) => (b.w + b.t / 2) - (a.w + a.t / 2) || b.pf - a.pf);
+  standings.forEach((r, i) => r.rank = i + 1);
+  return { ...s, lastDone: thru, currentWeek: thru + 1, standings, rec, complete: false };
+}
+
+// How well each team has set its lineups: starter points as a share of the best possible lineup
+function lineupEfficiency(s) {
+  const act = {}, opt = {};
+  for (const [wk, entries] of Object.entries(s.raw.weeks)) {
+    if (+wk > s.lastDone) continue;
+    for (const e of entries || []) { if (e.matchup_id == null) continue; const o = optimalPts(s.slots, e.players || [], e.players_points || {}); act[e.roster_id] = (act[e.roster_id] || 0) + ptsOf(e); opt[e.roster_id] = (opt[e.roster_id] || 0) + Math.max(o, ptsOf(e)); }
+  }
+  return Object.fromEntries(Object.keys(act).map(k => [k, opt[k] ? act[k] / opt[k] : 1]));
+}
+
+async function buildPower(s, gd, opts = {}) {
   const pws = s.pws, lastWk = Math.min(18, pws + 2);
   const start = s.lastDone === 99 ? 99 : s.lastDone + 1;
   const fut = start > lastWk ? [] : range(start, lastWk).slice(0, 8);
   const projs = await Promise.all(fut.map(w => loadProjections(s, w)));
   const has = projs.some(p => Object.keys(p).length);
-  const rosters = s.raw.rosters;
-  // Lineup each roster can field week by week. This week: injured reserve and taxi squad can't play.
+  const rosters = opts.rosters || s.raw.rosters;
+  // Lineup each roster can field week by week. Next week: injured reserve and taxi squad can't play.
   // Later weeks: IR players count again (they can be activated), taxi squad stays out.
   const projOpt = {}, irBack = {};
   for (const r of rosters) {
     const ir = new Set(r.reserve || []), taxi = new Set(r.taxi || []);
     const now = (r.players || []).filter(p => !ir.has(p) && !taxi.has(p)), later = (r.players || []).filter(p => !taxi.has(p));
-    projOpt[r.roster_id] = Object.fromEntries(fut.map((w, i) => [w, optimalPts(s.slots, i === 0 && w === s.currentWeek ? now : later, projs[i])]));
+    projOpt[r.roster_id] = Object.fromEntries(fut.map((w, i) => [w, optimalPts(s.slots, i === 0 ? now : later, projs[i])]));
     irBack[r.roster_id] = [...ir].filter(pid => fut.slice(1).some((w, i) => (projs[i + 1]?.[pid] || 0) >= 5));
   }
   const st = s.standings, played = st.filter(r => r.scores.length);
   const lgScores = played.flatMap(r => r.scores.map(x => x.pts)), lgMean = mean(lgScores) || 100;
+  // Form: season average pulled toward the league average early on, plus the last three weeks
   const form = {};
   for (const r of st) { const sc = r.scores.map(x => x.pts), n = sc.length; const shr = n ? (n * mean(sc) + 3 * lgMean) / (n + 3) : lgMean; form[r.rid] = n >= 3 ? 0.7 * shr + 0.3 * mean(sc.slice(-3)) : shr; }
+  // Lineup efficiency, relative to the league (projections assume perfect start/sit; real managers aren't)
+  const effRaw = lineupEfficiency(s), effMean = mean(Object.values(effRaw)) || 1;
+  const effRel = Object.fromEntries(st.map(r => [r.rid, Math.min(1.08, Math.max(0.92, (effRaw[r.rid] ?? effMean) / effMean))]));
+  // Put projections on the league's real scoring scale
   const firstProj = has ? mean(rosters.map(r => projOpt[r.roster_id][fut[0]]).filter(Boolean)) : 0;
   const k = has && firstProj ? Math.min(1.25, Math.max(0.7, lgMean / firstProj)) : 1;
-  const avgProj = Object.fromEntries(rosters.map(r => [r.roster_id, has ? mean(fut.map(w => projOpt[r.roster_id][w]).filter(v => v > 0)) * k : null]));
-  const meanFor = (rid, w) => { const pj = has ? projOpt[rid]?.[w] : null; return pj > 0 ? 0.5 * k * pj + 0.5 * form[rid] : (avgProj[rid] ? 0.5 * avgProj[rid] + 0.5 * form[rid] : form[rid]); };
-  const sim = draftProjection(s, gd, { meanFor });
+  const projAt = (rid, w) => { const pj = has ? projOpt[rid]?.[w] : 0; return pj > 0 ? k * pj * effRel[rid] : null; };
+  const avgProj = Object.fromEntries(rosters.map(r => { const v = fut.map(w => projAt(r.roster_id, w)).filter(v => v != null); return [r.roster_id, v.length ? mean(v) : null]; }));
+  const meanFor = (rid, w) => { const pj = projAt(rid, w); return pj != null ? 0.5 * pj + 0.5 * form[rid] : avgProj[rid] != null ? 0.5 * avgProj[rid] + 0.5 * form[rid] : form[rid]; };
+  // Team strength = expected weekly score going forward (form + roster), shown as points above/below average
+  const strength = Object.fromEntries(st.map(r => [r.rid, avgProj[r.rid] != null ? 0.5 * form[r.rid] + 0.5 * avgProj[r.rid] : form[r.rid]]));
+  const sMean = mean(Object.values(strength));
+  const rating = Object.fromEntries(Object.entries(strength).map(([k2, v]) => [k2, v - sMean]));
+  const sim = draftProjection(s, gd, { meanFor, N: opts.N });
   const T = sim.T;
-  // remaining regular-season opponents
   const sos = {};
   for (const r of st) {
     const opps = [];
     for (let w = start; w < pws && w <= 18; w++) for (const e of s.raw.weeks[w] || []) if (e.roster_id === r.rid) { const o = (s.raw.weeks[w] || []).find(x => x.matchup_id === e.matchup_id && x.roster_id !== r.rid); if (o) opps.push(meanFor(o.roster_id, w)); }
     sos[r.rid] = opps.length ? mean(opps) : null;
   }
-  return { fut, has, k, projOpt, avgProj, form, sim, sos, T, irBack };
+  return { fut, has, k, projOpt, avgProj, form, sim, sos, T, irBack, effRaw, effRel, strength, rating };
 }
 
 function powerTable(s, d, thru) {
@@ -2385,12 +2434,17 @@ function powerTable(s, d, thru) {
     for (const g of s.games) if (!g.post && g.final && g.week <= thru) { const me = g.a.rid === r.rid ? g.a : g.b.rid === r.rid ? g.b : null; if (!me) continue; const op = me === g.a ? g.b : g.a; if (me.pts > op.pts) w++; else if (me.pts < op.pts) l++; else t++; }
     const tm = d.sim.teams.find(x => x.rid === r.rid);
     return { r, rid: r.rid, oid: r.oid, ap: apW + apL ? apW / (apW + apL) : 0.5, apW, apL, win: w + l + t ? (w + t / 2) / (w + l + t) : 0.5, rec: { w, l, t }, l3: sc.length ? mean(sc.slice(-3).map(x => x.pts)) : 0, ppg: sc.length ? mean(sc.map(x => x.pts)) : 0,
-      roster: d.avgProj[r.rid], title: tm ? tm.p[d.T - 1] : 0, final2: tm ? tm.p[d.T - 1] + tm.p[d.T - 2] : 0, playoff: tm ? tm.playoff : 0, wins: tm ? tm.wins : 0, sos: d.sos[r.rid] };
+      roster: d.avgProj[r.rid], strength: d.strength[r.rid], rating: d.rating[r.rid], eff: d.effRaw[r.rid], title: tm ? tm.p[d.T - 1] : 0, final2: tm ? tm.p[d.T - 1] + tm.p[d.T - 2] : 0, playoff: tm ? tm.playoff : 0, wins: tm ? tm.wins : 0, sos: d.sos[r.rid] };
   });
   const z = key => { const v = rows.map(x => x[key] ?? 0), m = mean(v), sdv = sd(v) || 1; return x => ((x[key] ?? 0) - m) / sdv; };
-  const parts = [["ap", 0.2], ["l3", 0.1], ["roster", d.has ? 0.2 : 0], ["playoff", 0.15], ["title", 0.35]];
-  const tot = sum(parts.map(p => p[1])), zs = Object.fromEntries(parts.map(([k]) => [k, z(k)]));
-  for (const x of rows) { const zz = sum(parts.map(([k, wgt]) => zs[k](x) * wgt)) / tot; x.score = Math.max(1, Math.min(99, Math.round(50 + 18 * zz))); x.zz = zz; }
+  // Strength (form + roster going forward) leads; résumé (all-play, record) and title odds round it out
+  const parts = [["strength", 0.45, "Strength"], ["ap", 0.2, "All-play"], ["win", 0.15, "Record"], ["title", 0.2, "Title odds"]];
+  const zs = Object.fromEntries(parts.map(([k]) => [k, z(k)]));
+  for (const x of rows) {
+    x.parts = parts.map(([k, wgt, lbl]) => ({ lbl, v: 18 * wgt * zs[k](x) }));
+    const zz = sum(parts.map(([k, wgt]) => zs[k](x) * wgt));
+    x.score = Math.max(1, Math.min(99, Math.round(50 + 18 * zz))); x.zz = zz;
+  }
   rows.sort((a, b) => b.zz - a.zz);
   rows.forEach((x, i) => x.rank = i + 1);
   return rows;
@@ -2578,19 +2632,31 @@ function roastFacts(s, rows, prev, d, regThru) {
   });
 }
 
+// This week's rankings plus a true snapshot of last week's (standings, rosters and odds as they were then)
+async function buildPowerBoth(s) {
+  const regThru = Math.min(s.lastDone === 99 ? s.pws - 1 : s.lastDone, s.pws - 1);
+  const cur = await buildPower(s, STATE.curGd);
+  let prev = null, sPrev = null;
+  if (regThru >= 2 && s.lastDone !== 99) {
+    sPrev = seasonAsOf(s, regThru - 1);
+    const rosters = (s.raw.weeks[regThru] || []).filter(e => e.matchup_id != null).map(e => ({ roster_id: e.roster_id, players: e.players || [], reserve: [], taxi: [] }));
+    try { prev = await buildPower(sPrev, null, { rosters: rosters.length ? rosters : null, N: 2000 }); } catch (e) { console.warn(e); }
+  }
+  return { ...cur, prevData: prev, sPrev };
+}
 function viewPower() {
   const s = M.cur;
   if (!s.standings.some(r => r.scores.length)) return `<div class="section-h"><div><h2>Power Rankings</h2></div></div><div class="panel"><p class="muted" style="margin:0">Power rankings start once week 1 is in the books.</p></div>`;
   const key = `${s.year}-${s.lastDone}`;
   if (STATE.powerKey !== key || !STATE.powerData) {
-    if (STATE.powerLoading !== key) { STATE.powerLoading = key; buildPower(s, STATE.curGd).then(d => { STATE.powerData = d; STATE.powerKey = key; }).catch(e => { console.warn(e); STATE.powerData = { error: e.message }; STATE.powerKey = key; }).finally(() => { if (STATE.view === "power") render(); }); }
+    if (STATE.powerLoading !== key) { STATE.powerLoading = key; buildPowerBoth(s).then(d => { STATE.powerData = d; STATE.powerKey = key; }).catch(e => { console.warn(e); STATE.powerData = { error: e.message }; STATE.powerKey = key; }).finally(() => { if (STATE.view === "power") render(); }); }
     return `<div class="loader"><div class="big">Running the numbers</div><p class="muted">Projecting every roster and simulating the rest of the season…</p></div>`;
   }
   const d = STATE.powerData;
   if (d.error) return `<div class="panel err"><h3>Couldn't build the rankings</h3><p class="muted">${esc(d.error)}</p></div>`;
   const regThru = Math.min(s.lastDone === 99 ? s.pws - 1 : s.lastDone, s.pws - 1);
   const rows = powerTable(s, d, regThru);
-  const prev = regThru > 1 ? powerTable(s, d, regThru - 1) : null;
+  const prev = d.prevData ? powerTable(d.sPrev, d.prevData, regThru - 1) : null;
   const weeks = range(1, regThru);
   const heat = x => weeks.map(w => {
     const all = s.games.filter(g => g.week === w && g.final && !g.post).flatMap(g => [g.a, g.b]).sort((a, b) => b.pts - a.pts);
@@ -2617,10 +2683,11 @@ function viewPower() {
     return `<article class="pw" style="--team:${color(x.oid)}">
       <div class="pw-rank"><span class="pw-n">${x.rank}</span>${pr ? `<span class="mv ${mv > 0 ? "up" : mv < 0 ? "dn" : ""}">${mv > 0 ? "▲" + mv : mv < 0 ? "▼" + -mv : "–"}</span>` : ""}</div>
       <div class="pw-main">
-        <div class="pw-top"><a class="pw-team" href="#team-${x.rid}">${avatarHTML(x.oid)}<span class="tname">${esc(teamName(x.oid))}</span></a><span class="pill tier t-${tier.toLowerCase().replace(/[^a-z]+/g, "-")}">${tier}</span><span class="pw-score" title="Power score (50 = league average)"><span class="mono">${x.score}</span><span class="pw-bar"><i style="width:${x.score}%"></i></span></span></div>
+        <div class="pw-top"><a class="pw-team" href="#team-${x.rid}">${avatarHTML(x.oid)}<span class="tname">${esc(teamName(x.oid))}</span></a><span class="pill tier t-${tier.toLowerCase().replace(/[^a-z]+/g, "-")}">${tier}</span><span class="pw-score" title="Power score (50 = league average)"><span class="pw-rating mono" title="Expected points per week above or below an average team">${x.rating >= 0 ? "+" : "−"}${fmt(Math.abs(x.rating))}<small>/wk</small></span><span class="mono">${x.score}</span><span class="pw-bar"><i style="width:${x.score}%"></i></span></span></div>
         <p class="pw-blurb">${esc(roasts[x.rid])}</p>
+        <div class="pw-why" aria-label="What drives the score">${x.parts.map(p => `<span class="${p.v >= 0.5 ? "up" : p.v <= -0.5 ? "dn" : ""}">${p.lbl} <b class="mono">${p.v >= 0 ? "+" : "−"}${fmt(Math.abs(p.v))}</b></span>`).join("")}</div>
         <div class="pw-stats">
-          ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Proj / wk", fmt(x.roster)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
+          ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Roster proj", fmt(x.roster)) : ""}${x.eff != null ? stat("Lineup eff.", pct(x.eff)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
         </div>
         <div class="pw-strips"><div><div class="lbl">Weeks played</div><div class="pw-heat" aria-label="Weekly scoring rank, week 1 to ${regThru}">${heat(x)}</div></div>${ahead(x)}</div>
       </div></article>`;
@@ -2629,7 +2696,16 @@ function viewPower() {
   return `<div class="section-h"><div><div class="eyebrow">${s.year} · after week ${regThru}${d.fut.length ? ` · ${plural(d.fut.filter(w => w < s.pws).length, "week")} left` : ""}</div><h2>Power Rankings</h2></div></div>
     <p class="recap-lead" style="margin-top:0">${esc(`${teamName(fav.oid)} sits on top${fav.title ? ` with ${pct(fav.title)} title odds` : ""}.`)} ${prev ? (() => { const moves = rows.map(x => ({ x, mv: prev.find(y => y.rid === x.rid).rank - x.rank })).sort((a, b) => b.mv - a.mv); const up = moves[0], dn = moves[moves.length - 1]; return esc(`${up.mv > 0 ? `Biggest riser: ${teamName(up.x.oid)} (up ${up.mv}).` : ""} ${dn.mv < 0 ? `Biggest faller: ${teamName(dn.x.oid)} (down ${-dn.mv}).` : ""}`); })() : ""}</p>
     <div class="pws">${cards}</div>
-    <p class="note" style="margin-top:14px">The power score (50 = league average) blends, this season only: title odds (35%); playoff odds (15%); all-play record, which ignores schedule luck (20%); ${d.has ? "the best lineup each roster can field in every remaining week including the playoffs, from Sleeper's weekly projections and adjusted to this league's scoring (20%). It uses today's roster, so trades and pickups count as soon as they happen; byes and injuries lower the weeks they affect; players on injured reserve count again for the weeks after this one, and taxi-squad players don't count; " : ""}and scoring over the last three weeks (10%). The odds already account for each team's record and remaining schedule. Title and playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, with each team's weekly scoring drawn half from how it has played and half from what its roster projects that week, so byes and injuries count. "Opp ahead" is the average projected score of the opponents left on the regular-season schedule. Arrows compare with the rankings a week earlier. The strip of squares is each week's scoring rank, darkest for the week's top score.</p>`;
+    <details class="pw-method"><summary>How the rankings work</summary><div class="note">
+      <p><b>Power score</b> (50 = league average) blends four things from this season only, and the chips under each team show how much each one added or took away:</p>
+      <ul>
+        <li><b>Strength (45%)</b>: what a team should score in a typical week from here on, also shown as points per week above or below an average team. Half is how it has played (season average, nudged toward the league average early in the year, plus the last three weeks). Half is its roster: the best lineup it can field in each remaining week including the playoffs, from Sleeper's weekly projections, put on this league's scoring scale. Byes and injuries lower the weeks they hit; injured-reserve players count again after this week; taxi-squad players don't count; trades and pickups count as soon as they happen.</li>
+        <li><b>All-play record (20%)</b>: each week's score against every other team that week, so schedule luck doesn't count.</li>
+        <li><b>Record (15%)</b>: actual wins and losses. Results matter, just not as much as how a team plays.</li>
+        <li><b>Title odds (20%)</b>: from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, using each team's strength week by week.</li>
+      </ul>
+      <p><b>Lineup efficiency</b> is the share of its best possible score a team has actually started. Projections assume perfect start/sit decisions, so each team's roster projection is nudged up or down (up to 8%) by how well it really sets lineups compared with the league. <b>Opp ahead</b> is the average projected score of the opponents left on the regular-season schedule. <b>Arrows</b> compare against a full re-run of last week's rankings, using the standings and rosters as they were then. The squares show each week's scoring rank, darkest for the top score; the bars show the roster's projected best lineup for each week ahead. Tiers come from the odds: title favorite (25%+ title odds), contender (75%+ playoff odds), bubble, long shot, lottery bound.</p>
+    </div></details>`;
 }
 
 /* ---------------- draft pick ledger (shared) ---------------- */
@@ -2790,7 +2866,7 @@ function draftProjection(season, gd, opts = {}) {
   const play = (x, y, w) => (mu(x, w) + dist[x].s * randn()) > (mu(y, w) + dist[y].s * randn()) ? [x, y] : [y, x];
   const known = (x, y) => { const m = wb.find(m => m.w && ((m.t1 === x && m.t2 === y) || (m.t1 === y && m.t2 === x))); return m ? [m.w, m.l] : null; };
 
-  const N = regDone && season.complete ? 1 : CONFIG.SIMULATIONS;
+  const N = regDone && season.complete ? 1 : (opts.N || CONFIG.SIMULATIONS);
   const count = Object.fromEntries(rids.map(r => [r, new Array(T).fill(0)]));
   const base = Object.fromEntries(season.standings.map(r => [r.rid, { w: r.w + r.t / 2, pf: r.pf }]));
   const winsSum = Object.fromEntries(rids.map(r => [r, 0])), mpfSum = Object.fromEntries(rids.map(r => [r, 0])), madePO = Object.fromEntries(rids.map(r => [r, 0]));
