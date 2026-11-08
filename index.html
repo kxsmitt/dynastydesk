@@ -517,6 +517,13 @@ details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono)
 .hx{width:16px;height:10px;border-radius:2px;display:block}
 .hx.none{background:var(--surface-2);opacity:.5}
 @media (max-width:640px){.pw{grid-template-columns:46px minmax(0,1fr)}.pw-n{font-size:26px}.pw-score{margin-left:0}.pw-stats{gap:8px 18px}}
+.pw-strips{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end}
+.pw-strips .lbl{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+.pw-ahead{display:flex;gap:3px;align-items:flex-end;height:34px}
+.pw-ahead span{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;width:18px;height:100%}
+.pw-ahead i{display:block;width:100%;background:var(--team);border-radius:2px 2px 0 0;opacity:.85}
+.pw-ahead b{font:500 9px/1 var(--mono);color:var(--muted);margin-top:2px}
+.pw-note{font-size:12px;color:var(--muted);margin-top:4px}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -2335,14 +2342,18 @@ function journeySection() {
 async function buildPower(s, gd) {
   const pws = s.pws, lastWk = Math.min(18, pws + 2);
   const start = s.lastDone === 99 ? 99 : s.lastDone + 1;
-  const fut = start > lastWk ? [] : range(start, lastWk).slice(0, 6);
+  const fut = start > lastWk ? [] : range(start, lastWk).slice(0, 8);
   const projs = await Promise.all(fut.map(w => loadProjections(s, w)));
   const has = projs.some(p => Object.keys(p).length);
   const rosters = s.raw.rosters;
-  const projOpt = {};
+  // Lineup each roster can field week by week. This week: injured reserve and taxi squad can't play.
+  // Later weeks: IR players count again (they can be activated), taxi squad stays out.
+  const projOpt = {}, irBack = {};
   for (const r of rosters) {
-    const bad = new Set([...(r.reserve || []), ...(r.taxi || [])]), elig = (r.players || []).filter(p => !bad.has(p));
-    projOpt[r.roster_id] = Object.fromEntries(fut.map((w, i) => [w, optimalPts(s.slots, elig, projs[i])]));
+    const ir = new Set(r.reserve || []), taxi = new Set(r.taxi || []);
+    const now = (r.players || []).filter(p => !ir.has(p) && !taxi.has(p)), later = (r.players || []).filter(p => !taxi.has(p));
+    projOpt[r.roster_id] = Object.fromEntries(fut.map((w, i) => [w, optimalPts(s.slots, i === 0 && w === s.currentWeek ? now : later, projs[i])]));
+    irBack[r.roster_id] = [...ir].filter(pid => fut.slice(1).some((w, i) => (projs[i + 1]?.[pid] || 0) >= 5));
   }
   const st = s.standings, played = st.filter(r => r.scores.length);
   const lgScores = played.flatMap(r => r.scores.map(x => x.pts)), lgMean = mean(lgScores) || 100;
@@ -2361,7 +2372,7 @@ async function buildPower(s, gd) {
     for (let w = start; w < pws && w <= 18; w++) for (const e of s.raw.weeks[w] || []) if (e.roster_id === r.rid) { const o = (s.raw.weeks[w] || []).find(x => x.matchup_id === e.matchup_id && x.roster_id !== r.rid); if (o) opps.push(meanFor(o.roster_id, w)); }
     sos[r.rid] = opps.length ? mean(opps) : null;
   }
-  return { fut, has, k, projOpt, avgProj, form, sim, sos, T };
+  return { fut, has, k, projOpt, avgProj, form, sim, sos, T, irBack };
 }
 
 function powerTable(s, d, thru) {
@@ -2434,6 +2445,16 @@ function viewPower() {
     return `<i class="hx" style="background:color-mix(in srgb, var(--accent) ${Math.round(12 + t * 88)}%, var(--surface-2))" title="Week ${w}: ${fmt(me.pts)}, ${ordinal(rank)} of ${all.length}"></i>`;
   }).join("");
   const done = s.lastDone === 99 && s.complete;
+  const allProj = d.has ? Object.values(d.projOpt).flatMap(o => Object.values(o)).filter(v => v > 0) : [];
+  const projMax = allProj.length ? Math.max(...allProj) : 1, projLo = allProj.length ? Math.min(...allProj) * 0.8 : 0;
+  const ahead = x => {
+    if (!d.has || !d.fut.length) return "";
+    const o = d.projOpt[x.rid] || {}, vals = d.fut.map(w => o[w] || 0), avg = mean(vals.filter(v => v > 0));
+    const dip = d.fut.find((w, i) => vals[i] > 0 && vals[i] < avg * 0.88);
+    const back = (d.irBack[x.rid] || []).map(pname);
+    const notes = [back.length ? `Gets ${back.slice(0, 2).join(" and ")}${back.length > 2 ? ` +${back.length - 2}` : ""} back from IR` : "", dip ? `Thin week ${dip}` : ""].filter(Boolean);
+    return `<div><div class="lbl">Roster ahead (projected best lineup)</div><div class="pw-ahead">${d.fut.map((w, i) => `<span title="Week ${w}${w >= s.pws ? " (playoffs)" : ""}: best lineup projects ${fmt(vals[i] * d.k)}"><i style="height:${Math.max(8, (vals[i] - projLo) / ((projMax - projLo) || 1) * 100)}%;${w === dip ? "background:var(--loss)" : ""}"></i><b>${w}</b></span>`).join("")}</div>${notes.length ? `<div class="pw-note">${esc(notes.join(" · "))}</div>` : ""}</div>`;
+  };
   const cards = rows.map(x => {
     const pr = prev?.find(y => y.rid === x.rid), mv = pr ? pr.rank - x.rank : 0;
     const tier = done ? (s.champ === x.oid ? "Champion" : "Season over") : PWR_TIER(x);
@@ -2446,14 +2467,14 @@ function viewPower() {
         <div class="pw-stats">
           ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Proj / wk", fmt(x.roster)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
         </div>
-        <div class="pw-heat" aria-label="Weekly scoring rank, week 1 to ${regThru}">${heat(x)}</div>
+        <div class="pw-strips"><div><div class="lbl">Weeks played</div><div class="pw-heat" aria-label="Weekly scoring rank, week 1 to ${regThru}">${heat(x)}</div></div>${ahead(x)}</div>
       </div></article>`;
   }).join("");
   const fav = rows[0];
   return `<div class="section-h"><div><div class="eyebrow">${s.year} · after week ${regThru}${d.fut.length ? ` · ${plural(d.fut.filter(w => w < s.pws).length, "week")} left` : ""}</div><h2>Power Rankings</h2></div></div>
     <p class="recap-lead" style="margin-top:0">${esc(`${teamName(fav.oid)} sits on top${fav.title ? ` with ${pct(fav.title)} title odds` : ""}.`)} ${prev ? (() => { const moves = rows.map(x => ({ x, mv: prev.find(y => y.rid === x.rid).rank - x.rank })).sort((a, b) => b.mv - a.mv); const up = moves[0], dn = moves[moves.length - 1]; return esc(`${up.mv > 0 ? `Biggest riser: ${teamName(up.x.oid)} (up ${up.mv}).` : ""} ${dn.mv < 0 ? `Biggest faller: ${teamName(dn.x.oid)} (down ${-dn.mv}).` : ""}`); })() : ""}</p>
     <div class="pws">${cards}</div>
-    <p class="note" style="margin-top:14px">The power score (50 = league average) blends, this season only: title odds (35%); playoff odds (15%); all-play record, which ignores schedule luck (20%); ${d.has ? "the best lineup each roster can field in the coming weeks, from Sleeper's weekly projections and adjusted to this league's scoring (20%); " : ""}and scoring over the last three weeks (10%). The odds already account for each team's record and remaining schedule. Title and playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, with each team's weekly scoring drawn half from how it has played and half from what its roster projects that week, so byes and injuries count. "Opp ahead" is the average projected score of the opponents left on the regular-season schedule. Arrows compare with the rankings a week earlier. The strip of squares is each week's scoring rank, darkest for the week's top score.</p>`;
+    <p class="note" style="margin-top:14px">The power score (50 = league average) blends, this season only: title odds (35%); playoff odds (15%); all-play record, which ignores schedule luck (20%); ${d.has ? "the best lineup each roster can field in every remaining week including the playoffs, from Sleeper's weekly projections and adjusted to this league's scoring (20%). It uses today's roster, so trades and pickups count as soon as they happen; byes and injuries lower the weeks they affect; players on injured reserve count again for the weeks after this one, and taxi-squad players don't count; " : ""}and scoring over the last three weeks (10%). The odds already account for each team's record and remaining schedule. Title and playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, with each team's weekly scoring drawn half from how it has played and half from what its roster projects that week, so byes and injuries count. "Opp ahead" is the average projected score of the opponents left on the regular-season schedule. Arrows compare with the rankings a week earlier. The strip of squares is each week's scoring rank, darkest for the week's top score.</p>`;
 }
 
 /* ---------------- draft pick ledger (shared) ---------------- */
