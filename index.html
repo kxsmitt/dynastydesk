@@ -2424,6 +2424,160 @@ function powerBlurb(x, rows, d) {
   return `${fresh(PWR_Q[PWR_TIER(x)], x.oid + "pq" + x.rank, T)} ${line}`.trim();
 }
 
+/* ---- power ranking roasts: picked from what actually happened, re-rolled every week ---- */
+const ROAST = {
+  lucky: [
+    (T, x) => `${T} is ${x.rec} but scores like a ${x.exp}-win team. The schedule-maker deserves a cut of the prize money.`,
+    (T, x) => `${T}'s record says ${x.rec}. The all-play says ${x.ap}. One of those is lying, and it's the record.`,
+    (T, x) => `${T} has won ${x.extra} more games than the points deserve. Whatever deal was made at the crossroads, it's working.`,
+    (T, x) => `Every week ${T} draws the one opponent having a worse day. ${x.rec} with ${x.exp}-win scoring. Witchcraft.`
+  ],
+  unlucky: [
+    (T, x) => `${T} scores like a ${x.exp}-win team and sits at ${x.rec}. Somebody check if this team broke a mirror in August.`,
+    (T, x) => `${T} has the all-play record of ${x.apDesc} (${x.ap}) and the real record of a cautionary tale (${x.rec}).`,
+    (T, x) => `${T} keeps putting up points and running into the week's buzzsaw. ${x.extra} wins stolen by the schedule.`,
+    (T, x) => `If fantasy had a court of appeals, ${T} (${x.rec}, all-play ${x.ap}) would be filing today.`,
+    (T, x) => `${T} keeps scoring like ${x.apDesc} and losing like a punchline. ${x.rec}. Brutal.`
+  ],
+  riser: [
+    (T, x) => `Up ${x.mv} spots this week. ${T} has entered the "maybe we're actually good?" phase.`,
+    (T, x) => `${T} jumps ${x.mv} places. The group chat respect is still pending review.`,
+    (T, x) => `${T} climbs ${x.mv}. Don't get comfortable, the view up here costs extra.`
+  ],
+  faller: [
+    (T, x) => `Down ${x.mv} spots. ${T} fell so fast the rankings had to check for a pulse.`,
+    (T, x) => `${T} drops ${x.mv} places, the kind of slide usually followed by a "just vibes" trade offer.`,
+    (T, x) => `${T} tumbles ${x.mv}. Gravity is undefeated and so, apparently, is everyone ${T} plays.`
+  ],
+  hot: [
+    (T, x) => `${x.n} straight wins. ${T} is starting to believe, which historically is when the wheels come off.`,
+    (T, x) => `${T} has won ${x.n} in a row and has stopped answering trade offers out of pure arrogance.`,
+    (T, x) => `${x.n}-game win streak for ${T}. The rest of the league is checking the lineup for illegal substances.`
+  ],
+  cold: [
+    (T, x) => `${x.n} straight losses. ${T} is one more L from asking the commissioner about a "rebuild exemption."`,
+    (T, x) => `${T} has lost ${x.n} in a row. At this point the lineup is just a cry for help.`,
+    (T, x) => `${x.n} straight Ls for ${T}. Even the waiver wire has stopped returning calls.`
+  ],
+  blowoutL: [
+    (T, x) => `Last week ${T} lost by ${x.m} to ${x.opp}. Thoughts, prayers and a quiet moment of silence.`,
+    (T, x) => `${x.opp} beat ${T} by ${x.m} last week. ${T} has asked that the tape be destroyed.`,
+    (T, x) => `A ${x.m}-point loss to ${x.opp}. ${T} set a lineup, technically.`
+  ],
+  blowoutW: [
+    (T, x) => `${T} beat ${x.opp} by ${x.m} last week and has not stopped bringing it up since.`,
+    (T, x) => `Last week ${T} won by ${x.m}. ${x.opp} is still looking for its dignity under the couch.`,
+    (T, x) => `${T} hung a ${x.m}-point beating on ${x.opp}. The league office has reviewed it for cruelty.`
+  ],
+  heartbreak: [
+    (T, x) => `${T} lost by ${x.m} last week. That's one bench decision, one stat correction, one cursed fumble.`,
+    (T, x) => `Lost by ${x.m} to ${x.opp}. Somewhere on ${T}'s bench is the guy who would have won it.`,
+    (T, x) => `${T} lost to ${x.opp} by ${x.m} and will be replaying it in the shower until Thanksgiving.`
+  ],
+  escape: [
+    (T, x) => `${T} beat ${x.opp} by ${x.m} last week. A win is a win, even if it was held together with tape.`,
+    (T, x) => `${T} survived ${x.opp} by ${x.m}. The cardiologist has sent an invoice.`
+  ],
+  weekLow: [
+    (T, x) => `${T} posted the league's lowest score last week (${x.pts}). Bold choice to start the injury report.`,
+    (T, x) => `${x.pts} points last week, dead last in the league. ${T}'s lineup was mostly decorative.`
+  ],
+  weekHigh: [
+    (T, x) => `${T} dropped the week's top score (${x.pts}). Screenshot it now, it may never happen again.`,
+    (T, x) => `League-high ${x.pts} last week. ${T} finally read the projections instead of the horoscopes.`
+  ],
+  bench: [
+    (T, x) => `${T} has left ${x.left} points on the bench this season, the most in the league. The bench is outscoring some starting lineups.`,
+    (T, x) => `${x.left} bench points wasted this year. ${T} sets lineups with a dartboard and a blindfold.`,
+    (T, x) => `Most points left on the bench in the league (${x.left}). ${T}'s start/sit advice comes from a Magic 8-Ball.`
+  ],
+  coach: [
+    (T, x) => `${T} has left the fewest points on the bench all year. Annoyingly competent.`,
+    (T, x) => `Best lineup-setter in the league by bench points left. ${T} probably has a spreadsheet. Probably several.`
+  ],
+  top: [
+    (T, x) => `The team to beat. ${T} is ${x.title} to win it all and the rest of the league is 100% annoyed about it.`,
+    (T, x) => `${T} sits at No. 1 with ${x.title} title odds. Enjoy the target on your back.`,
+    (T, x) => `Top of the board. ${T} has already started practicing the trophy speech, which is never a good sign.`
+  ],
+  bottom: [
+    (T, x) => `Rock bottom. ${T} is down here mostly so everyone else feels better about themselves.`,
+    (T, x) => `Last in the power rankings. ${T}'s best asset right now is a high draft pick.`,
+    (T, x) => `${T} is ranked last, which in dynasty is called "strategic." It is not strategic.`
+  ],
+  thin: [
+    (T, x) => `Week ${x.w} looks ugly for ${T}'s lineup. Start shopping the waiver wire now, not Saturday night.`,
+    (T, x) => `The roster thins out badly in week ${x.w}. ${T} might need to start someone's cousin.`
+  ],
+  irBack: [
+    (T, x) => `Help is coming: ${x.who} returns from IR. ${T}'s second half could look very different.`,
+    (T, x) => `${T} gets ${x.who} back from IR, which is the closest thing to a midseason trade without the regret.`
+  ],
+  noShot: [
+    (T, x) => `Title odds: ${x.title}. ${T} would need a miracle, a meteor and a commissioner ruling.`,
+    (T, x) => `${T} has a ${x.title} shot at the title, which rounds nicely to "next year."`
+  ],
+  bubble: [
+    (T, x) => `${x.po} to make the playoffs. ${T} is one bad Sunday from the consolation bracket.`,
+    (T, x) => `${T} sits at ${x.po} playoff odds. Every lineup call from here is a referendum.`
+  ],
+  filler: [
+    (T, x) => `${T} is aggressively medium. Not good enough to fear, not bad enough to pity.`,
+    (T, x) => `${T} is the beige paint of this league. Fine. Functional. Forgettable.`,
+    (T, x) => `Nobody is scared of ${T} and nobody is laughing at ${T}. Somehow that's worse.`,
+    (T, x) => `${T} is exactly where everyone expected. Congratulations on being predictable.`
+  ]
+};
+
+function roastFacts(s, rows, prev, d, regThru) {
+  const lastWk = regThru, games = s.games.filter(g => g.week === lastWk && g.final && !g.post);
+  const scores = games.flatMap(g => [g.a, g.b]), hi = Math.max(...scores.map(x => x.pts)), lo = Math.min(...scores.map(x => x.pts));
+  // season points left on the bench
+  const left = {};
+  for (const [wk, entries] of Object.entries(s.raw.weeks)) {
+    if (+wk > regThru) continue;
+    for (const e of entries || []) { if (e.matchup_id == null) continue; const opt = optimalPts(s.slots, e.players || [], e.players_points || {}); left[e.roster_id] = (left[e.roster_id] || 0) + Math.max(0, opt - ptsOf(e)); }
+  }
+  const lefts = Object.values(left), maxLeft = Math.max(...lefts), minLeft = Math.min(...lefts);
+  return rows.map(x => {
+    const r = s.rec[x.rid], g = games.find(g => g.a.rid === x.rid || g.b.rid === x.rid);
+    const me = g ? (g.a.rid === x.rid ? g.a : g.b) : null, op = g ? (me === g.a ? g.b : g.a) : null;
+    let n = 0; const res = r.results, lastR = res[res.length - 1]; for (let i = res.length - 1; i >= 0 && res[i] === lastR; i--) n++;
+    const games_ = res.length || 1, exp = (x.apW + x.apL) ? x.apW / (x.apW + x.apL) * games_ : 0, luck = x.rec.w + x.rec.t / 2 - exp;
+    const pr = prev?.find(y => y.rid === x.rid), mv = pr ? pr.rank - x.rank : 0;
+    const o = d.projOpt?.[x.rid] || {}, vals = (d.fut || []).map(w => o[w] || 0), avg = mean(vals.filter(v => v > 0));
+    const thinW = d.has ? (d.fut || []).find((w, i) => w < s.pws && vals[i] > 0 && vals[i] < avg * 0.85) : null;
+    const back = (d.irBack?.[x.rid] || []).map(pname);
+    const T = teamName(x.oid), base = { rec: recStr(x.rec), ap: `${x.apW}-${x.apL}`, exp: Math.round(exp), extra: Math.abs(Math.round(luck)), title: pct(x.title), po: pct(x.playoff), apDesc: x.ap >= 0.6 ? "a contender" : x.ap >= 0.45 ? "a .500 team" : "a team that should be worse off" };
+    const c = [];
+    if (luck >= 1.5) c.push(["lucky", 6 + luck, base]);
+    if (luck <= -1.5) c.push(["unlucky", 6 - luck, base]);
+    if (mv >= 2) c.push(["riser", 4 + mv, { ...base, mv }]);
+    if (mv <= -2) c.push(["faller", 4 - mv, { ...base, mv: -mv }]);
+    if (n >= 3 && lastR === "W") c.push(["hot", 3 + n, { ...base, n }]);
+    if (n >= 3 && lastR === "L") c.push(["cold", 3 + n, { ...base, n }]);
+    if (me && op) {
+      const m = me.pts - op.pts, mm = { ...base, m: fmt(Math.abs(m), Math.abs(m) < 5 ? 2 : 1), opp: teamName(op.oid), pts: fmt(me.pts) };
+      if (m <= -30) c.push(["blowoutL", 7, mm]); else if (m < 0 && m > -5) c.push(["heartbreak", 7, mm]);
+      if (m >= 30) c.push(["blowoutW", 6, mm]); else if (m > 0 && m < 5) c.push(["escape", 5, mm]);
+      if (me.pts === lo) c.push(["weekLow", 6.5, mm]); if (me.pts === hi) c.push(["weekHigh", 6.5, mm]);
+    }
+    if (left[x.rid] === maxLeft && maxLeft > 0) c.push(["bench", 6, { ...base, left: fmt(maxLeft, 0) }]);
+    if (left[x.rid] === minLeft && maxLeft - minLeft > 20) c.push(["coach", 4, base]);
+    if (x.rank === 1) c.push(["top", 5, base]);
+    if (x.rank === rows.length) c.push(["bottom", 5, base]);
+    if (thinW) c.push(["thin", 3, { ...base, w: thinW }]);
+    if (back.length) c.push(["irBack", 3.5, { ...base, who: back.slice(0, 2).join(" and ") }]);
+    if (x.title < 0.01 && x.rank !== rows.length) c.push(["noShot", 2.5, base]);
+    if (x.playoff > 0.3 && x.playoff < 0.7) c.push(["bubble", 2.5, base]);
+    c.push(["filler", 0, base]);
+    c.sort((a, b) => b[1] - a[1]);
+    const picks = [c[0]]; const second = c.find(k => k !== c[0] && k[0] !== "filler" && !(c[0][0].startsWith("blowout") && k[0].startsWith("week")));
+    if (second) picks.push(second);
+    return { rid: x.rid, text: picks.map(([cat, , v]) => fresh(ROAST[cat], `${x.oid}|${s.year}|${regThru}|${cat}`, T, v)).join(" ") };
+  });
+}
+
 function viewPower() {
   const s = M.cur;
   if (!s.standings.some(r => r.scores.length)) return `<div class="section-h"><div><h2>Power Rankings</h2></div></div><div class="panel"><p class="muted" style="margin:0">Power rankings start once week 1 is in the books.</p></div>`;
@@ -2445,6 +2599,7 @@ function viewPower() {
     return `<i class="hx" style="background:color-mix(in srgb, var(--accent) ${Math.round(12 + t * 88)}%, var(--surface-2))" title="Week ${w}: ${fmt(me.pts)}, ${ordinal(rank)} of ${all.length}"></i>`;
   }).join("");
   const done = s.lastDone === 99 && s.complete;
+  const roasts = Object.fromEntries(roastFacts(s, rows, prev, d, regThru).map(r => [r.rid, r.text]));
   const allProj = d.has ? Object.values(d.projOpt).flatMap(o => Object.values(o)).filter(v => v > 0) : [];
   const projMax = allProj.length ? Math.max(...allProj) : 1, projLo = allProj.length ? Math.min(...allProj) * 0.8 : 0;
   const ahead = x => {
@@ -2463,7 +2618,7 @@ function viewPower() {
       <div class="pw-rank"><span class="pw-n">${x.rank}</span>${pr ? `<span class="mv ${mv > 0 ? "up" : mv < 0 ? "dn" : ""}">${mv > 0 ? "▲" + mv : mv < 0 ? "▼" + -mv : "–"}</span>` : ""}</div>
       <div class="pw-main">
         <div class="pw-top"><a class="pw-team" href="#team-${x.rid}">${avatarHTML(x.oid)}<span class="tname">${esc(teamName(x.oid))}</span></a><span class="pill tier t-${tier.toLowerCase().replace(/[^a-z]+/g, "-")}">${tier}</span><span class="pw-score" title="Power score (50 = league average)"><span class="mono">${x.score}</span><span class="pw-bar"><i style="width:${x.score}%"></i></span></span></div>
-        <p class="pw-blurb">${esc(powerBlurb(x, rows, d))}</p>
+        <p class="pw-blurb">${esc(roasts[x.rid])}</p>
         <div class="pw-stats">
           ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Proj / wk", fmt(x.roster)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
         </div>
