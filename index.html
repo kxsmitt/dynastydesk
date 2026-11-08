@@ -488,6 +488,35 @@ details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono)
 .sm-h .mono{font-size:11px}
 .sm svg{width:100%;height:auto;display:block}
 .sm svg text{font-size:10px}
+/* power rankings */
+.pws{display:flex;flex-direction:column;gap:10px}
+.pw{display:grid;grid-template-columns:64px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--team);border-radius:var(--radius);overflow:hidden}
+.pw-rank{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--surface-2);border-right:1px solid var(--line)}
+.pw-n{font:900 34px/1 var(--display)}
+.mv{font:600 11px/1 var(--mono);color:var(--muted)}
+.mv.up{color:var(--win)}.mv.dn{color:var(--loss)}
+.pw-main{padding:12px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pw-top{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.pw-team{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;min-width:0}
+.pw-team:hover .tname{color:var(--accent)}
+.pw-team .tname{white-space:normal}
+.pill.tier{font-size:10px}
+.t-title-favorite,.t-champion{color:var(--bg)!important;background:var(--accent);border-color:var(--accent)!important}
+.t-contender{color:var(--win);border-color:var(--win)}
+.t-bubble{color:var(--accent);border-color:var(--accent)}
+.t-lottery-bound{color:var(--loss);border-color:var(--loss)}
+.pw-score{margin-left:auto;display:flex;align-items:center;gap:8px}
+.pw-score .mono{font-size:22px;font-weight:600}
+.pw-bar{width:90px;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.pw-bar i{display:block;height:100%;background:var(--team)}
+.pw-blurb{margin:0;font:400 15.5px/1.45 var(--story)}
+.pw-stats{display:flex;flex-wrap:wrap;gap:8px 26px}
+.pw-stats .lbl{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+.pv{font-size:15px;font-weight:600}
+.pw-heat{display:flex;gap:3px;flex-wrap:wrap}
+.hx{width:16px;height:10px;border-radius:2px;display:block}
+.hx.none{background:var(--surface-2);opacity:.5}
+@media (max-width:640px){.pw{grid-template-columns:46px minmax(0,1fr)}.pw-n{font-size:26px}.pw-score{margin-left:0}.pw-stats{gap:8px 18px}}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -524,6 +553,7 @@ body.locked .top, body.locked footer{display:none}
       <button class="tab" role="tab" data-v="gameday" type="button">Gameday</button>
       <button class="tab" role="tab" data-v="franchises" type="button">Franchises</button>
       <button class="tab" role="tab" data-v="stories" type="button">Storylines</button>
+      <button class="tab" role="tab" data-v="power" type="button">Power Rankings</button>
       <button class="tab" role="tab" data-v="outlook" type="button">Outlook</button>
       <button class="tab" role="tab" data-v="dynasty" type="button">Dynasty</button>
       <button class="tab" role="tab" data-v="draft" type="button">Draft</button>
@@ -1450,13 +1480,13 @@ function viewOutlook() {
   });
   const l3max = Math.max(...rows.map(x => x.last3), 1), l3min = Math.min(...rows.map(x => x.last3), 0);
   for (const x of rows) { const games = x.r.results.length || 1; x.power = 0.55 * x.ap + 0.25 * ((x.last3 - l3min) / ((l3max - l3min) || 1)) + 0.2 * ((x.r.w + x.r.t / 2) / games); }
-  const power = [...rows].sort((a, b) => b.power - a.power);
+  const power = [...rows].sort((a, b) => a.r.rank - b.r.rank);
   const status = rid => { if (!odds) return ""; const p = odds.res[rid].playoff; return p >= 0.995 ? `<span class="pill in">Clinched*</span>` : p <= 0.005 ? `<span class="pill out">Out*</span>` : p >= 0.2 && p <= 0.8 ? `<span class="pill bubble">Bubble</span>` : ""; };
-  const table = `<div class="tbl-wrap"><table><thead><tr><th class="n">Pwr</th><th>Team</th><th class="n">Rec</th><th class="n">PF</th><th class="n">All-play</th><th>Last weeks</th>${odds ? `<th>Playoffs</th>${odds.byes ? "<th>Bye</th>" : ""}<th class="n">Proj W</th><th></th>` : ""}</tr></thead><tbody>
-    ${power.map((x, i) => `<tr><td class="n">${i + 1}${x.r.rank !== i + 1 ? ` <span class="muted" style="font-size:11px">(${ordinal(x.r.rank)})</span>` : ""}</td><td>${teamCell(x.r.oid)}</td><td class="n">${recStr(x.r)}</td><td class="n">${fmt(x.r.pf)}</td><td class="n">${x.r.apW}-${x.r.apL}</td><td>${sparkline(x.r.scores.map(z => z.pts), 110, 28, color(x.r.oid))}</td>
+  const table = `<div class="tbl-wrap"><table><thead><tr><th class="n">#</th><th>Team</th><th class="n">Rec</th><th class="n">PF</th><th class="n">All-play</th><th>Last weeks</th>${odds ? `<th>Playoffs</th>${odds.byes ? "<th>Bye</th>" : ""}<th class="n">Proj W</th><th></th>` : ""}</tr></thead><tbody>
+    ${power.map((x, i) => `<tr><td class="n">${x.r.rank}</td><td>${teamCell(x.r.oid)}</td><td class="n">${recStr(x.r)}</td><td class="n">${fmt(x.r.pf)}</td><td class="n">${x.r.apW}-${x.r.apL}</td><td>${sparkline(x.r.scores.map(z => z.pts), 110, 28, color(x.r.oid))}</td>
       ${odds ? `<td>${bar(odds.res[x.r.rid].playoff, color(x.r.oid))}</td>${odds.byes ? `<td>${bar(odds.res[x.r.rid].bye, color(x.r.oid))}</td>` : ""}<td class="n">${fmt(odds.res[x.r.rid].wins, 1)}</td><td>${status(x.r.rid)}</td>` : ""}</tr>`).join("")}
   </tbody></table></div>`;
-  const oddsNote = odds ? `<p class="note">Power blends all-play win rate (55%), recent scoring (25%) and actual record (20%). Playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the remaining ${plural(odds.weeksLeft, "week")}: each team's scoring is drawn from its season average (pulled toward the league average) and spread, with live projections for the week in progress. ${odds.pt} teams make it${odds.byes ? `, top ${odds.byes} get byes` : ""}; ties break on points for. *Clinched/Out means more than 99.5% of simulations agree, not a mathematical lock.</p>`
+  const oddsNote = odds ? `<p class="note">Teams in standings order. For who's actually the best, see <a href="#power">Power Rankings</a>. Playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the remaining ${plural(odds.weeksLeft, "week")}: each team's scoring is drawn from its season average (pulled toward the league average) and spread, with live projections for the week in progress. ${odds.pt} teams make it${odds.byes ? `, top ${odds.byes} get byes` : ""}; ties break on points for. *Clinched/Out means more than 99.5% of simulations agree, not a mathematical lock.</p>`
     : `<p class="note">${s.lastDone === 99 ? "The regular season is over, so playoff odds are retired until next year." : "Playoff odds appear once the regular season has games to simulate."}</p>`;
   const thru = Math.min(s.lastDone, s.pws - 1);
   return `<div class="section-h"><div><div class="eyebrow">${s.year} · ${thru > 0 ? `regular season through week ${thru}` : "season hasn't kicked off"}</div><h2>Outlook</h2></div></div>
@@ -2298,6 +2328,134 @@ function journeySection() {
      <p class="note">Built from every completed week's rosters on Sleeper plus today's rosters, so a player picked up and dropped within the same week won't show that stop. "Trades" and "Pickups" count each time he changed hands by trade, or was added off waivers or free agency. A boomerang came back to a franchise he'd already left.</p>`);
 }
 
+/* ---------------- power rankings (this season only) ----------------
+   Blends how teams have played (all-play, record, recent form) with how they should play the rest of
+   the way (best projected lineup from today's roster, by week), then simulates the rest of the season
+   and the playoffs with that forward-looking strength to get title odds. */
+async function buildPower(s, gd) {
+  const pws = s.pws, lastWk = Math.min(18, pws + 2);
+  const start = s.lastDone === 99 ? 99 : s.lastDone + 1;
+  const fut = start > lastWk ? [] : range(start, lastWk).slice(0, 6);
+  const projs = await Promise.all(fut.map(w => loadProjections(s, w)));
+  const has = projs.some(p => Object.keys(p).length);
+  const rosters = s.raw.rosters;
+  const projOpt = {};
+  for (const r of rosters) {
+    const bad = new Set([...(r.reserve || []), ...(r.taxi || [])]), elig = (r.players || []).filter(p => !bad.has(p));
+    projOpt[r.roster_id] = Object.fromEntries(fut.map((w, i) => [w, optimalPts(s.slots, elig, projs[i])]));
+  }
+  const st = s.standings, played = st.filter(r => r.scores.length);
+  const lgScores = played.flatMap(r => r.scores.map(x => x.pts)), lgMean = mean(lgScores) || 100;
+  const form = {};
+  for (const r of st) { const sc = r.scores.map(x => x.pts), n = sc.length; const shr = n ? (n * mean(sc) + 3 * lgMean) / (n + 3) : lgMean; form[r.rid] = n >= 3 ? 0.7 * shr + 0.3 * mean(sc.slice(-3)) : shr; }
+  const firstProj = has ? mean(rosters.map(r => projOpt[r.roster_id][fut[0]]).filter(Boolean)) : 0;
+  const k = has && firstProj ? Math.min(1.25, Math.max(0.7, lgMean / firstProj)) : 1;
+  const avgProj = Object.fromEntries(rosters.map(r => [r.roster_id, has ? mean(fut.map(w => projOpt[r.roster_id][w]).filter(v => v > 0)) * k : null]));
+  const meanFor = (rid, w) => { const pj = has ? projOpt[rid]?.[w] : null; return pj > 0 ? 0.5 * k * pj + 0.5 * form[rid] : (avgProj[rid] ? 0.5 * avgProj[rid] + 0.5 * form[rid] : form[rid]); };
+  const sim = draftProjection(s, gd, { meanFor });
+  const T = sim.T;
+  // remaining regular-season opponents
+  const sos = {};
+  for (const r of st) {
+    const opps = [];
+    for (let w = start; w < pws && w <= 18; w++) for (const e of s.raw.weeks[w] || []) if (e.roster_id === r.rid) { const o = (s.raw.weeks[w] || []).find(x => x.matchup_id === e.matchup_id && x.roster_id !== r.rid); if (o) opps.push(meanFor(o.roster_id, w)); }
+    sos[r.rid] = opps.length ? mean(opps) : null;
+  }
+  return { fut, has, k, projOpt, avgProj, form, sim, sos, T };
+}
+
+function powerTable(s, d, thru) {
+  // ingredients measured through week `thru`
+  const rows = s.standings.map(r => {
+    const sc = r.scores.filter(x => x.week <= thru);
+    const wkPts = {}; for (const g of s.games) if (!g.post && g.final && g.week <= thru) for (const x of [g.a, g.b]) (wkPts[g.week] ||= []).push(x);
+    let apW = 0, apL = 0, w = 0, l = 0, t = 0;
+    for (const x of sc) { const all = (wkPts[x.week] || []).map(y => y.pts); apW += all.filter(p => p < x.pts).length; apL += all.filter(p => p > x.pts).length; }
+    for (const g of s.games) if (!g.post && g.final && g.week <= thru) { const me = g.a.rid === r.rid ? g.a : g.b.rid === r.rid ? g.b : null; if (!me) continue; const op = me === g.a ? g.b : g.a; if (me.pts > op.pts) w++; else if (me.pts < op.pts) l++; else t++; }
+    const tm = d.sim.teams.find(x => x.rid === r.rid);
+    return { r, rid: r.rid, oid: r.oid, ap: apW + apL ? apW / (apW + apL) : 0.5, apW, apL, win: w + l + t ? (w + t / 2) / (w + l + t) : 0.5, rec: { w, l, t }, l3: sc.length ? mean(sc.slice(-3).map(x => x.pts)) : 0, ppg: sc.length ? mean(sc.map(x => x.pts)) : 0,
+      roster: d.avgProj[r.rid], title: tm ? tm.p[d.T - 1] : 0, final2: tm ? tm.p[d.T - 1] + tm.p[d.T - 2] : 0, playoff: tm ? tm.playoff : 0, wins: tm ? tm.wins : 0, sos: d.sos[r.rid] };
+  });
+  const z = key => { const v = rows.map(x => x[key] ?? 0), m = mean(v), sdv = sd(v) || 1; return x => ((x[key] ?? 0) - m) / sdv; };
+  const parts = [["ap", 0.2], ["l3", 0.1], ["roster", d.has ? 0.2 : 0], ["playoff", 0.15], ["title", 0.35]];
+  const tot = sum(parts.map(p => p[1])), zs = Object.fromEntries(parts.map(([k]) => [k, z(k)]));
+  for (const x of rows) { const zz = sum(parts.map(([k, wgt]) => zs[k](x) * wgt)) / tot; x.score = Math.max(1, Math.min(99, Math.round(50 + 18 * zz))); x.zz = zz; }
+  rows.sort((a, b) => b.zz - a.zz);
+  rows.forEach((x, i) => x.rank = i + 1);
+  return rows;
+}
+
+const PWR_TIER = r => r.title >= 0.25 ? "Title favorite" : r.playoff >= 0.75 ? "Contender" : r.playoff >= 0.4 ? "Bubble" : r.playoff >= 0.1 ? "Long shot" : "Lottery bound";
+const PWR_Q = {
+  "Title favorite": [T => `${T} is the team everyone else is game-planning against.`, T => `The trophy engraver has ${T} on speed dial.`, T => `${T} is the favorite, and knows it.`, T => `Everybody's chasing ${T}.`],
+  "Contender": [T => `${T} has a real shot, and a few managers are nervous about it.`, T => `Nobody wants to draw ${T} in round one.`, T => `${T} belongs in the conversation.`, T => `${T} is built to make noise in December.`],
+  "Bubble": [T => `${T} is one bad Sunday from the consolation bracket.`, T => `${T} lives on the bubble. Every lineup decision matters.`, T => `${T} could go either way. Mostly sideways.`, T => `Hold your breath, ${T}.`],
+  "Long shot": [T => `${T} needs help, and a few miracles.`, T => `${T}'s playoff path runs through a lot of other people losing.`, T => `${T} is still mathematically alive. Emphasis on mathematically.`],
+  "Lottery bound": [T => `${T} has entered the rookie scouting phase of the season.`, T => `${T} is playing for pride and draft position.`, T => `${T} has started saying "next year" out loud.`, T => `${T}'s war room is already mocking the 1.01.`]
+};
+function powerBlurb(x, rows, d) {
+  const n = rows.length, rk = key => [...rows].sort((a, b) => (b[key] ?? -1) - (a[key] ?? -1)).indexOf(x) + 1;
+  const sosRk = x.sos != null ? [...rows].filter(y => y.sos != null).sort((a, b) => a.sos - b.sos).indexOf(x) + 1 : null;
+  const facts = [
+    { r: rk("ap"), good: `all-play record of ${x.apW}-${x.apL} says this team is legit`, bad: `an all-play mark of ${x.apW}-${x.apL} says the record is flattering` },
+    { r: rk("l3"), good: `${fmt(x.l3)} a week over the last three`, bad: `just ${fmt(x.l3)} a week over the last three` },
+    ...(d.has ? [{ r: rk("roster"), good: `a roster that projects ${fmt(x.roster)} a week the rest of the way`, bad: `a roster projecting only ${fmt(x.roster)} a week going forward` }] : []),
+    ...(sosRk ? [{ r: sosRk, good: "the softest remaining schedule", bad: "a brutal schedule ahead" }] : [])
+  ];
+  const spread = key => { const v = rows.map(y => y[key]).filter(v => v != null); return v.length ? Math.max(...v) - Math.min(...v) : 0; };
+  const flat = { 1: spread("l3") < 4, 2: d.has && spread("roster") < 4, 3: spread("sos") < 3 };
+  const usable = facts.filter((f, i) => !(i === 1 && flat[1]) && !(i === 2 && d.has && flat[2]) && !(f.good === "the softest remaining schedule" && flat[3]));
+  if (!usable.length) return fresh(PWR_Q[PWR_TIER(x)], x.oid + "pq" + x.rank, teamName(x.oid));
+  const best = [...usable].sort((a, b) => a.r - b.r)[0], worst = [...usable].sort((a, b) => b.r - a.r)[0];
+  const T = teamName(x.oid);
+  let line = best.r <= Math.ceil(n / 3) ? `Strength: ${best.good}.` : "";
+  if (worst !== best && worst.r > n - Math.ceil(n / 3)) line += `${line ? " " : ""}Concern: ${worst.bad}.`;
+  return `${fresh(PWR_Q[PWR_TIER(x)], x.oid + "pq" + x.rank, T)} ${line}`.trim();
+}
+
+function viewPower() {
+  const s = M.cur;
+  if (!s.standings.some(r => r.scores.length)) return `<div class="section-h"><div><h2>Power Rankings</h2></div></div><div class="panel"><p class="muted" style="margin:0">Power rankings start once week 1 is in the books.</p></div>`;
+  const key = `${s.year}-${s.lastDone}`;
+  if (STATE.powerKey !== key || !STATE.powerData) {
+    if (STATE.powerLoading !== key) { STATE.powerLoading = key; buildPower(s, STATE.curGd).then(d => { STATE.powerData = d; STATE.powerKey = key; }).catch(e => { console.warn(e); STATE.powerData = { error: e.message }; STATE.powerKey = key; }).finally(() => { if (STATE.view === "power") render(); }); }
+    return `<div class="loader"><div class="big">Running the numbers</div><p class="muted">Projecting every roster and simulating the rest of the season…</p></div>`;
+  }
+  const d = STATE.powerData;
+  if (d.error) return `<div class="panel err"><h3>Couldn't build the rankings</h3><p class="muted">${esc(d.error)}</p></div>`;
+  const regThru = Math.min(s.lastDone === 99 ? s.pws - 1 : s.lastDone, s.pws - 1);
+  const rows = powerTable(s, d, regThru);
+  const prev = regThru > 1 ? powerTable(s, d, regThru - 1) : null;
+  const weeks = range(1, regThru);
+  const heat = x => weeks.map(w => {
+    const all = s.games.filter(g => g.week === w && g.final && !g.post).flatMap(g => [g.a, g.b]).sort((a, b) => b.pts - a.pts);
+    const me = all.find(y => y.rid === x.rid); if (!me) return `<i class="hx none"></i>`;
+    const rank = all.indexOf(me) + 1, t = 1 - (rank - 1) / Math.max(1, all.length - 1);
+    return `<i class="hx" style="background:color-mix(in srgb, var(--accent) ${Math.round(12 + t * 88)}%, var(--surface-2))" title="Week ${w}: ${fmt(me.pts)}, ${ordinal(rank)} of ${all.length}"></i>`;
+  }).join("");
+  const done = s.lastDone === 99 && s.complete;
+  const cards = rows.map(x => {
+    const pr = prev?.find(y => y.rid === x.rid), mv = pr ? pr.rank - x.rank : 0;
+    const tier = done ? (s.champ === x.oid ? "Champion" : "Season over") : PWR_TIER(x);
+    const stat = (l, v) => `<div><div class="lbl">${l}</div><div class="mono pv">${v}</div></div>`;
+    return `<article class="pw" style="--team:${color(x.oid)}">
+      <div class="pw-rank"><span class="pw-n">${x.rank}</span>${pr ? `<span class="mv ${mv > 0 ? "up" : mv < 0 ? "dn" : ""}">${mv > 0 ? "▲" + mv : mv < 0 ? "▼" + -mv : "–"}</span>` : ""}</div>
+      <div class="pw-main">
+        <div class="pw-top"><a class="pw-team" href="#team-${x.rid}">${avatarHTML(x.oid)}<span class="tname">${esc(teamName(x.oid))}</span></a><span class="pill tier t-${tier.toLowerCase().replace(/[^a-z]+/g, "-")}">${tier}</span><span class="pw-score" title="Power score (50 = league average)"><span class="mono">${x.score}</span><span class="pw-bar"><i style="width:${x.score}%"></i></span></span></div>
+        <p class="pw-blurb">${esc(powerBlurb(x, rows, d))}</p>
+        <div class="pw-stats">
+          ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Proj / wk", fmt(x.roster)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
+        </div>
+        <div class="pw-heat" aria-label="Weekly scoring rank, week 1 to ${regThru}">${heat(x)}</div>
+      </div></article>`;
+  }).join("");
+  const fav = rows[0];
+  return `<div class="section-h"><div><div class="eyebrow">${s.year} · after week ${regThru}${d.fut.length ? ` · ${plural(d.fut.filter(w => w < s.pws).length, "week")} left` : ""}</div><h2>Power Rankings</h2></div></div>
+    <p class="recap-lead" style="margin-top:0">${esc(`${teamName(fav.oid)} sits on top${fav.title ? ` with ${pct(fav.title)} title odds` : ""}.`)} ${prev ? (() => { const moves = rows.map(x => ({ x, mv: prev.find(y => y.rid === x.rid).rank - x.rank })).sort((a, b) => b.mv - a.mv); const up = moves[0], dn = moves[moves.length - 1]; return esc(`${up.mv > 0 ? `Biggest riser: ${teamName(up.x.oid)} (up ${up.mv}).` : ""} ${dn.mv < 0 ? `Biggest faller: ${teamName(dn.x.oid)} (down ${-dn.mv}).` : ""}`); })() : ""}</p>
+    <div class="pws">${cards}</div>
+    <p class="note" style="margin-top:14px">The power score (50 = league average) blends, this season only: title odds (35%); playoff odds (15%); all-play record, which ignores schedule luck (20%); ${d.has ? "the best lineup each roster can field in the coming weeks, from Sleeper's weekly projections and adjusted to this league's scoring (20%); " : ""}and scoring over the last three weeks (10%). The odds already account for each team's record and remaining schedule. Title and playoff odds come from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, with each team's weekly scoring drawn half from how it has played and half from what its roster projects that week, so byes and injuries count. "Opp ahead" is the average projected score of the opponents left on the regular-season schedule. Arrows compare with the rankings a week earlier. The strip of squares is each week's scoring rank, darkest for the week's top score.</p>`;
+}
+
 /* ---------------- draft pick ledger (shared) ---------------- */
 function picksLedger(s) {
   const first = ["pre_draft", "drafting"].includes(s.league.status) ? +s.year : +s.year + 1;
@@ -2430,7 +2588,7 @@ function viewTeam(rid) {
    Teams knocked out in the same round are ordered by Max PF, lowest first. */
 const maxPF = (season, rid) => { const r = season.raw.rosters.find(x => x.roster_id === rid); const st = r?.settings || {}; return (+st.ppts || 0) + (+st.ppts_decimal || 0) / 100; };
 
-function draftProjection(season, gd) {
+function draftProjection(season, gd, opts = {}) {
   const pt = season.set.playoff_teams || 6, pws = season.pws;
   const rids = season.standings.map(r => r.rid), T = rids.length;
   const lgScores = season.standings.flatMap(r => r.scores.map(s => s.pts));
@@ -2452,19 +2610,20 @@ function draftProjection(season, gd) {
   const wb = (season.raw.wb || []).filter(m => m.r);
   const useWB = regDone && wb.some(m => m.t1 && m.t2);
   const byes = pt > 1 ? Math.pow(2, Math.ceil(Math.log2(pt))) - pt : 0;
-  const play = (x, y) => (dist[x].m + dist[x].s * randn()) > (dist[y].m + dist[y].s * randn()) ? [x, y] : [y, x];
+  const mu = (r, w) => opts.meanFor ? opts.meanFor(r, w) : dist[r].m;
+  const play = (x, y, w) => (mu(x, w) + dist[x].s * randn()) > (mu(y, w) + dist[y].s * randn()) ? [x, y] : [y, x];
   const known = (x, y) => { const m = wb.find(m => m.w && ((m.t1 === x && m.t2 === y) || (m.t1 === y && m.t2 === x))); return m ? [m.w, m.l] : null; };
 
   const N = regDone && season.complete ? 1 : CONFIG.SIMULATIONS;
   const count = Object.fromEntries(rids.map(r => [r, new Array(T).fill(0)]));
   const base = Object.fromEntries(season.standings.map(r => [r.rid, { w: r.w + r.t / 2, pf: r.pf }]));
-  const mpfSum = Object.fromEntries(rids.map(r => [r, 0])), madePO = Object.fromEntries(rids.map(r => [r, 0]));
+  const winsSum = Object.fromEntries(rids.map(r => [r, 0])), mpfSum = Object.fromEntries(rids.map(r => [r, 0])), madePO = Object.fromEntries(rids.map(r => [r, 0]));
 
   for (let n = 0; n < N; n++) {
     const st = {}; for (const r of rids) st[r] = { rid: r, w: base[r].w, pf: base[r].pf, mpf: mpf0[r] };
     for (const { w, pairs } of remain) {
       const sc = {};
-      for (const r of rids) { const live = gd && gd.week === w && !gd.isPast ? gd.sides[r] : null; sc[r] = live ? live.final + Math.sqrt(live.v) * randn() : dist[r].m + dist[r].s * randn(); }
+      for (const r of rids) { const live = gd && gd.week === w && !gd.isPast ? gd.sides[r] : null; sc[r] = live ? live.final + Math.sqrt(live.v) * randn() : mu(r, w) + dist[r].s * randn(); }
       for (const [x, y] of pairs) { if (!st[x] || !st[y]) continue; if (sc[x] > sc[y]) st[x].w++; else st[y].w++; st[x].pf += sc[x]; st[y].pf += sc[y]; }
       if (season.medianGame) { const med = median(Object.values(sc)); for (const r of rids) if (sc[r] > med) st[r].w++; }
       for (const r of rids) st[r].mpf += sc[r] + gap[r] * (0.7 + 0.6 * Math.random());
@@ -2479,7 +2638,7 @@ function draftProjection(season, gd) {
         const side = (t, from) => t ?? (from?.w != null ? res[from.w]?.[0] : from?.l != null ? res[from.l]?.[1] : null);
         const x = side(m.t1, m.t1_from), y = side(m.t2, m.t2_from);
         if (x == null || y == null) continue;
-        const out = m.w ? [m.w, m.l] : play(x, y);
+        const out = m.w ? [m.w, m.l] : play(x, y, pws + m.r - 1);
         res[m.m] = out;
         const main = m.p == null || m.p === 1;
         if (main && !(out[1] in elim)) elim[out[1]] = m.r;
@@ -2496,7 +2655,7 @@ function draftProjection(season, gd) {
         const next = round === 1 ? [...waiting] : [];
         for (let i = 0; i < playing.length / 2; i++) {
           const x = playing[i], y = playing[playing.length - 1 - i];
-          const [win, lose] = known(x, y) || play(x, y);
+          const [win, lose] = known(x, y) || play(x, y, pws + round - 1);
           elim[lose] = round; next.push(win);
         }
         if (playing.length % 2) next.push(playing[(playing.length - 1) / 2]);
@@ -2508,13 +2667,13 @@ function draftProjection(season, gd) {
     const non = rids.filter(r => !inPO.has(r)).sort((a, b) => st[a].mpf - st[b].mpf);
     const po = [...field].sort((a, b) => (elim[a] ?? 0) - (elim[b] ?? 0) || st[a].mpf - st[b].mpf);
     [...non, ...po].forEach((r, i) => { count[r][i]++; });
-    for (const r of rids) { mpfSum[r] += st[r].mpf; if (inPO.has(r)) madePO[r]++; }
+    for (const r of rids) { mpfSum[r] += st[r].mpf; winsSum[r] += st[r].w; if (inPO.has(r)) madePO[r]++; }
   }
   const out = rids.map(r => {
     const p = count[r].map(c => c / N);
     const exp = p.reduce((a, x, i) => a + x * (i + 1), 0);
     const best = p.indexOf(Math.max(...p));
-    return { rid: r, p, exp, best, mpf: mpfSum[r] / N, mpfNow: mpf0[r], playoff: madePO[r] / N };
+    return { rid: r, p, exp, best, mpf: mpfSum[r] / N, mpfNow: mpf0[r], playoff: madePO[r] / N, wins: winsSum[r] / N };
   }).sort((a, b) => a.exp - b.exp);
   return { teams: out, T, pt, nonPO: T - pt, final: N === 1, weeksLeft: remain.length };
 }
@@ -2744,7 +2903,7 @@ function render() {
   USED.clear();
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.v === STATE.view)));
   try {
-    app.innerHTML = { gameday: viewGameday, stories: viewStories, outlook: viewOutlook, history: viewHistory, dynasty: viewDynasty, franchises: viewFranchises, draft: viewDraft }[STATE.view]();
+    app.innerHTML = { gameday: viewGameday, stories: viewStories, outlook: viewOutlook, history: viewHistory, dynasty: viewDynasty, franchises: viewFranchises, draft: viewDraft, power: viewPower }[STATE.view]();
   } catch (e) {
     console.error(e);
     app.innerHTML = `<div class="panel err"><h3>This view hit a snag</h3><p class="muted">${esc(e.message)}</p></div>`;
@@ -2854,7 +3013,7 @@ function route() {
   STATE.team = tm ? +tm[1] : null;
   STATE.match = mm ? +mm[2] : null;
   if (mm && M && +mm[1] !== STATE.week) { STATE.week = +mm[1]; refreshGameday(false).then(() => { if (STATE.match != null) render(); }); }
-  STATE.view = tm ? "franchises" : mm ? "gameday" : rm ? "stories" : ["gameday", "stories", "outlook", "history", "dynasty", "franchises", "draft"].includes(v) ? v : "gameday";
+  STATE.view = tm ? "franchises" : mm ? "gameday" : rm ? "stories" : ["gameday", "stories", "power", "outlook", "history", "dynasty", "franchises", "draft"].includes(v) ? v : "gameday";
   if (M) { render(); if (prev !== STATE.view + STATE.team + "/" + STATE.match + "/" + STATE.recap) window.scrollTo(0, 0); }
 }
 window.addEventListener("hashchange", route);
