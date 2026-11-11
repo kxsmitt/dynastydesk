@@ -514,8 +514,12 @@ details.jmore summary{cursor:pointer;margin-top:12px;font:600 12px/1 var(--mono)
 .pw-stats .lbl{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
 .pv{font-size:15px;font-weight:600}
 .pw-heat{display:flex;gap:3px;flex-wrap:wrap}
-.hx{width:16px;height:10px;border-radius:2px;display:block}
+.hxc{display:flex;flex-direction:column;align-items:center;gap:2px}
+.hx{width:22px;height:22px;border-radius:4px;display:grid;place-items:center;font:600 11px/1 var(--mono);font-style:normal;color:var(--fg)}
+.hx.hi{color:var(--bg)}
 .hx.none{background:var(--surface-2);opacity:.5}
+.hxc b{font:600 9px/1 var(--mono);color:var(--muted)}
+.hxc b.W{color:var(--win)}.hxc b.L{color:var(--loss)}
 @media (max-width:640px){.pw{grid-template-columns:46px minmax(0,1fr)}.pw-n{font-size:26px}.pw-score{margin-left:0}.pw-stats{gap:8px 18px}}
 .pw-strips{display:flex;flex-wrap:wrap;gap:10px 28px;align-items:flex-end}
 .pw-strips .lbl{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
@@ -2712,9 +2716,11 @@ function viewPower() {
   const weeks = range(1, regThru);
   const heat = x => weeks.map(w => {
     const all = s.games.filter(g => g.week === w && g.final && !g.post).flatMap(g => [g.a, g.b]).sort((a, b) => b.pts - a.pts);
-    const me = all.find(y => y.rid === x.rid); if (!me) return `<i class="hx none"></i>`;
+    const me = all.find(y => y.rid === x.rid); if (!me) return `<span class="hxc"><i class="hx none">–</i><b>${w}</b></span>`;
     const rank = all.indexOf(me) + 1, t = 1 - (rank - 1) / Math.max(1, all.length - 1);
-    return `<i class="hx" style="background:color-mix(in srgb, var(--accent) ${Math.round(12 + t * 88)}%, var(--surface-2))" title="Week ${w}: ${fmt(me.pts)}, ${ordinal(rank)} of ${all.length}"></i>`;
+    const g = s.games.find(gg => gg.week === w && gg.final && !gg.post && (gg.a.rid === x.rid || gg.b.rid === x.rid));
+    const op = g ? (g.a.rid === x.rid ? g.b : g.a) : null, res = op ? (me.pts > op.pts ? "W" : me.pts < op.pts ? "L" : "T") : "";
+    return `<span class="hxc" title="Week ${w}: scored ${fmt(me.pts)}, ${ordinal(rank)}-highest of ${all.length} teams${res ? ` · ${res === "W" ? "won" : res === "L" ? "lost" : "tied"}${op ? ` vs ${esc(teamName(op.oid))}` : ""}` : ""}"><i class="hx${t >= 0.5 ? " hi" : ""}" style="background:color-mix(in srgb, var(--accent) ${Math.round(10 + t * 90)}%, var(--surface-2))">${rank}</i><b class="${res}">${res || w}</b></span>`;
   }).join("");
   const done = s.lastDone === 99 && s.complete;
   const roasts = Object.fromEntries(roastFacts(s, rows, prev, d, regThru).map(r => [r.rid, r.text]));
@@ -2741,7 +2747,7 @@ function viewPower() {
         <div class="pw-stats">
           ${stat("Record", recStr(x.rec))}${stat("All-play", `${x.apW}-${x.apL}`)}${stat("Last 3", fmt(x.l3))}${d.has ? stat("Roster proj", fmt(x.roster)) : ""}${x.eff != null ? stat("Lineup eff.", pct(x.eff)) : ""}${x.sos != null ? stat("Opp ahead", fmt(x.sos)) : ""}${done ? "" : stat("Playoffs", pct(x.playoff)) + stat("Title", pct(x.title))}
         </div>
-        <div class="pw-strips"><div><div class="lbl">Weeks played</div><div class="pw-heat" aria-label="Weekly scoring rank, week 1 to ${regThru}">${heat(x)}</div></div>${ahead(x)}</div>
+        <div class="pw-strips"><div><div class="lbl">Weekly scoring finish, week 1 → ${regThru}</div><div class="pw-heat" aria-label="Where this team's score ranked in the league each week, week 1 to ${regThru}">${heat(x)}</div><div class="pw-note">Number = where the score ranked that week (1 = highest in the league). Stronger orange = better. Letter = that week's result (W/L).</div></div>${ahead(x)}</div>
       </div></article>`;
   }).join("");
   const fav = rows[0];
@@ -2763,7 +2769,7 @@ function viewPower() {
         <li><b>Beat the team above you and you pass them.</b> If two closely ranked teams played this week, the winner moves ahead of the loser.</li>
         <li><b>Overall chances still rule.</b> Because most of the score is strength and title odds, a win streak by a team with weak scoring or a thin roster doesn't move it much.</li>
       </ul>
-      <p><b>Lineup efficiency</b> is the share of its best possible score a team has actually started. Projections assume perfect start/sit decisions, so each team's roster projection is nudged up or down (up to 8%) by how well it really sets lineups compared with the league. <b>Opp ahead</b> is the average projected score of the opponents left on the regular-season schedule. <b>Arrows</b> compare against a full re-run of last week's rankings, using the standings and rosters as they were then. The squares show each week's scoring rank, darkest for the top score; the bars show the roster's projected best lineup for each week ahead. Tiers come from the odds: title favorite (25%+ title odds), contender (75%+ playoff odds), bubble, long shot, lottery bound.</p>
+      <p><b>Lineup efficiency</b> is the share of its best possible score a team has actually started. Projections assume perfect start/sit decisions, so each team's roster projection is nudged up or down (up to 8%) by how well it really sets lineups compared with the league. <b>Opp ahead</b> is the average projected score of the opponents left on the regular-season schedule. <b>Arrows</b> compare against a full re-run of last week's rankings, using the standings and rosters as they were then. The weekly scoring finish row shows where each week's score ranked across the whole league (1 = highest), with W or L for that week's result, so you can see how a team has really been playing, separate from its record; the bars show the roster's projected best lineup for each week ahead. Tiers come from the odds: title favorite (25%+ title odds), contender (75%+ playoff odds), bubble, long shot, lottery bound.</p>
     </div></details>`;
 }
 
