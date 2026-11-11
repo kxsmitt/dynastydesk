@@ -547,13 +547,18 @@ details.pw-method li{margin-bottom:6px}
 .bk-in{display:flex;align-items:center;gap:10px 14px;padding-block:10px}
 .bk-tag{flex:none;display:inline-flex;align-items:center;gap:7px;background:#fff;color:#b0121c;font:800 15px/1 var(--display);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;border-radius:4px}
 .bk-tag .dot.live{background:#b0121c}
-.bk-body{flex:1;min-width:0;font-size:15px;line-height:1.4}
-.bk-body b{font:800 17px/1.2 var(--display);text-transform:uppercase;letter-spacing:.02em;margin-right:4px}
-.bk-ago{font:500 11px var(--mono);opacity:.8;white-space:nowrap}
+.tweet{flex:1;min-width:0;display:flex;gap:10px;background:#fff;color:#0f1419;border-radius:14px;padding:10px 14px;box-shadow:0 1px 0 rgba(0,0,0,.15)}
+.tw-av{flex:none;width:40px;height:40px;border-radius:50%;background:#0f1419;color:#fff;display:grid;place-items:center;font:800 15px/1 var(--display);letter-spacing:.04em}
+.tw-main{min-width:0}
+.tw-h{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;font-size:14.5px}
+.tw-h b{font-family:var(--body);font-weight:700}
+.tw-badge{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:#b0121c;color:#fff;font-size:9px}
+.tw-meta{color:#536471;font-size:14px}
+.tw-text{margin:2px 0 0;font:400 15.5px/1.4 var(--body);color:#0f1419}
 .bk-x{flex:none;background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:50%;width:28px;height:28px;font-size:18px;line-height:1;cursor:pointer}
 .bk-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
 @keyframes bkin{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}
-@media (max-width:640px){.bk-in{flex-wrap:wrap}.bk-body{flex-basis:calc(100% - 50px);order:3}}
+@media (max-width:640px){.bk-in{flex-wrap:wrap}.tweet{flex-basis:100%;order:3}.bk-x{margin-left:auto}}
 @media (prefers-reduced-motion:reduce){.breaking{animation:none}}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
@@ -622,9 +627,10 @@ const CONFIG = {
   // Franchises are tracked by roster slot, so a new owner inherits the old history automatically.
   // List team names that are the same franchise as a safety net (case and spacing don't matter).
   FRANCHISE_LINKS: [["WOWNICETITSREVENGE", "DC GOONERS"]],
-  // Breaking news banner. Add, edit or delete items; an empty list hides the banner.
+  // Breaking news, posted by the league's own (fictional) insider account. Add, edit or delete items; an empty list hides it.
+  INSIDER: { name: "Phux Insider", handle: "PhuxInsider", initials: "PI" },
   BREAKING: [
-    { kicker: "Breaking", head: "Horn Dogs closing in on a trade", text: "Horn Dogs are reportedly closing in on a deal with an unknown suitor. Per reports, they'd add two 2027 draft picks on top of the five they already hold. Developing.", posted: "2026-11-10T19:40:00-05:00" }
+    { head: "Horn Dogs closing in on a trade", text: "Sources: Horn Dogs are closing in on a trade with an unknown suitor that would land them two 2027 draft picks, on top of the five they already hold. Talks are ongoing.", posted: "2026-11-10T19:40:00-05:00" }
   ],
   // Landing-page password, stored as a SHA-256 hash (current password: "dynasty").
   // Set to "" to turn the gate off. This keeps casual visitors out; it is not real security.
@@ -3230,10 +3236,20 @@ function render() {
 function renderBreaking() {
   const el = $("#breaking"); if (!el) return;
   let gone = []; try { gone = JSON.parse(localStorage.getItem("breaking-dismissed") || "[]"); } catch {}
-  const items = (CONFIG.BREAKING || []).filter(b => b && b.text && !gone.includes(hash(b.head + b.text)));
+  const I = CONFIG.INSIDER || { name: "League Insider", handle: "LeagueInsider", initials: "LI" };
+  const items = (CONFIG.BREAKING || []).filter(b => b && b.text && !gone.includes(hash((b.head || "") + b.text)));
   el.innerHTML = items.map(b => {
-    const ago = b.posted ? (() => { const m = Math.round((Date.now() - new Date(b.posted)) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : new Date(b.posted).toLocaleDateString([], { month: "short", day: "numeric" }); })() : "";
-    return `<div class="breaking" role="status"><div class="wrap bk-in"><span class="bk-tag"><span class="dot live"></span>${esc(b.kicker || "Breaking")}</span><div class="bk-body"><b>${esc(b.head || "")}</b> ${esc(b.text)}${ago ? ` <span class="bk-ago">${esc(ago)}</span>` : ""}</div><button class="bk-x" type="button" data-bk="${hash(b.head + b.text)}" aria-label="Dismiss this news">×</button></div></div>`;
+    const ago = b.posted ? (() => { const m = Math.round((Date.now() - new Date(b.posted)) / 60000); return m < 1 ? "now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : new Date(b.posted).toLocaleDateString([], { month: "short", day: "numeric" }); })() : "";
+    return `<div class="breaking" role="status"><div class="wrap bk-in">
+      <span class="bk-tag"><span class="dot live"></span>Breaking</span>
+      <article class="tweet">
+        <div class="tw-av" aria-hidden="true">${esc(I.initials)}</div>
+        <div class="tw-main">
+          <div class="tw-h"><b>${esc(I.name)}</b><span class="tw-badge" title="League insider">★</span><span class="tw-meta">@${esc(I.handle)}${ago ? ` · ${esc(ago)}` : ""}</span></div>
+          <p class="tw-text">🚨 ${esc(b.text)}</p>
+        </div>
+      </article>
+      <button class="bk-x" type="button" data-bk="${hash((b.head || "") + b.text)}" aria-label="Dismiss this news">×</button></div></div>`;
   }).join("");
 }
 document.addEventListener("click", e => { const x = e.target.closest("[data-bk]"); if (!x) return; let gone = []; try { gone = JSON.parse(localStorage.getItem("breaking-dismissed") || "[]"); } catch {} gone.push(+x.dataset.bk); try { localStorage.setItem("breaking-dismissed", JSON.stringify(gone)); } catch {} renderBreaking(); });
