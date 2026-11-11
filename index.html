@@ -656,7 +656,11 @@ const pick = (arr, seed) => arr[hash(seed) % arr.length];
 function erf(x) { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
   const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * y; }
 const Phi = z => 0.5 * (1 + erf(z / Math.SQRT2));
-function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+// Seeded random numbers: the same league data always produces the same simulations, for every viewer
+let RNG = Math.random;
+function seededRng(seed) { let a = seed >>> 0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function withSeed(key, fn) { const prev = RNG; RNG = seededRng(hash(key)); try { return fn(); } finally { RNG = prev; } }
+function randn() { let u = 0, v = 0; while (!u) u = RNG(); while (!v) v = RNG(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 async function pool(fns, n = 6) { const out = []; let i = 0;
   await Promise.all(Array.from({ length: n }, async () => { while (i < fns.length) { const k = i++; out[k] = await fns[k](); } })); return out; }
 const plural = (n, w, p) => `${n} ${n === 1 ? w : (p || w + "s")}`;
@@ -1047,6 +1051,11 @@ async function gamedayModel(season, week, { fresh = false } = {}) {
 
 /* ---------------- playoff odds (Monte Carlo) ---------------- */
 function playoffOdds(season, gd) {
+  return withSeed(`po|${season.league.league_id}|${season.lastDone}|${simKey(gd)}`, () => playoffOddsRun(season, gd));
+}
+// Live scores feed the simulation, so the seed includes them: same scores in, same odds out
+function simKey(gd) { return gd && !gd.isPast ? Object.values(gd.sides).map(x => `${x.rid}:${x.pts.toFixed(2)}`).sort().join(",") : ""; }
+function playoffOddsRun(season, gd) {
   const set = season.set, pt = set.playoff_teams || 6, pws = season.pws;
   const rids = season.standings.map(r => r.rid);
   const lgScores = season.standings.flatMap(r => r.scores.map(s => s.pts));
@@ -2912,6 +2921,9 @@ function viewTeam(rid) {
 const maxPF = (season, rid) => { const r = season.raw.rosters.find(x => x.roster_id === rid); const st = r?.settings || {}; return (+st.ppts || 0) + (+st.ppts_decimal || 0) / 100; };
 
 function draftProjection(season, gd, opts = {}) {
+  return withSeed(`dp|${season.league.league_id}|${season.lastDone}|${opts.N || ""}|${opts.meanFor ? "power" : "draft"}|${simKey(gd)}`, () => draftProjectionRun(season, gd, opts));
+}
+function draftProjectionRun(season, gd, opts = {}) {
   const pt = season.set.playoff_teams || 6, pws = season.pws;
   const rids = season.standings.map(r => r.rid), T = rids.length;
   const lgScores = season.standings.flatMap(r => r.scores.map(s => s.pts));
@@ -2949,7 +2961,7 @@ function draftProjection(season, gd, opts = {}) {
       for (const r of rids) { const live = gd && gd.week === w && !gd.isPast ? gd.sides[r] : null; sc[r] = live ? live.final + Math.sqrt(live.v) * randn() : mu(r, w) + dist[r].s * randn(); }
       for (const [x, y] of pairs) { if (!st[x] || !st[y]) continue; if (sc[x] > sc[y]) st[x].w++; else st[y].w++; st[x].pf += sc[x]; st[y].pf += sc[y]; }
       if (season.medianGame) { const med = median(Object.values(sc)); for (const r of rids) if (sc[r] > med) st[r].w++; }
-      for (const r of rids) st[r].mpf += sc[r] + gap[r] * (0.7 + 0.6 * Math.random());
+      for (const r of rids) st[r].mpf += sc[r] + gap[r] * (0.7 + 0.6 * RNG());
     }
     // playoff field + elimination round
     const elim = {};   // rid -> round eliminated (higher = later); champion gets 99
