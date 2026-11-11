@@ -630,7 +630,7 @@ const CONFIG = {
   // Breaking news, posted by the league's own (fictional) insider account. Add, edit or delete items; an empty list hides it.
   INSIDER: { name: "Phux Insider", handle: "PhuxInsider", initials: "PI" },
   BREAKING: [
-    { head: "Horn Dogs closing in on a trade", text: "Sources: Horn Dogs are closing in on a trade with an unknown suitor that would land them two 2027 draft picks, on top of the five they already hold. Talks are ongoing.", posted: "2026-11-10T19:40:00-05:00" }
+    { head: "Trade: Horn Dogs and Neelys in Paris", text: "Trade: Neelys in Paris is acquiring WR R. Rice, WR R. Flournoy and TE T. McBride from Horn Dogs for WR D. Stribling and five picks: Neelys' 2027 1st, 2nd and 3rd-round picks, another 2027 3rd-rounder, and Neelys' 2028 1st, sources tell Phux Insider. The 6-2 Neelys are all in.", posted: "2026-11-10T20:22:00-05:00" }
   ],
   // Landing-page password, stored as a SHA-256 hash (current password: "dynasty").
   // Set to "" to turn the gate off. This keeps casual visitors out; it is not real security.
@@ -2596,6 +2596,16 @@ const ROAST = {
     (T, x) => `Last in the power rankings. ${T}'s best asset right now is a high draft pick.`,
     (T, x) => `${T} is ranked last, which in dynasty is called "strategic." It is not strategic.`
   ],
+  buyer: [
+    (T, x) => `${T} just pushed every chip to the middle: ${x.got} for ${x.picks}. Title or bust, and the bust part is very much on the table.`,
+    (T, x) => `${T} traded ${x.picks} for ${x.got}. The future can wait; the trophy can't.`,
+    (T, x) => `All-in alert: ${T} added ${x.got} and mailed out ${x.picks}. Anything short of a ring is a disaster now.`
+  ],
+  seller: [
+    (T, x) => `${T} hit the eject button and walked away with ${x.picks}. The 2027 draft is now ${T}'s favorite holiday.`,
+    (T, x) => `${T} sold ${x.gave} for ${x.picks}. This season just became a very long scouting trip.`,
+    (T, x) => `${T} turned ${x.gave} into ${x.picks}. Bold rebuild or quiet surrender, depending who you ask.`
+  ],
   thin: [
     (T, x) => `Week ${x.w} looks ugly for ${T}'s lineup. Start shopping the waiver wire now, not Saturday night.`,
     (T, x) => `The roster thins out badly in week ${x.w}. ${T} might need to start someone's cousin.`
@@ -2652,6 +2662,17 @@ function roastFacts(s, rows, prev, d, regThru) {
       if (m <= -30) c.push(["blowoutL", 7, mm]); else if (m < 0 && m > -5) c.push(["heartbreak", 7, mm]);
       if (m >= 30) c.push(["blowoutW", 6, mm]); else if (m > 0 && m < 5) c.push(["escape", 5, mm]);
       if (me.pts === lo) c.push(["weekLow", 6.5, mm]); if (me.pts === hi) c.push(["weekHigh", 6.5, mm]);
+    }
+    // Big trades this week or last: buyers (got players, gave picks) and sellers (got picks, gave players)
+    for (const wk of [s.currentWeek, regThru]) for (const t of s.raw.tx[wk] || []) {
+      if (t.type !== "trade" || t.status !== "complete" || !(t.roster_ids || []).includes(x.rid)) continue;
+      const gotP = Object.entries(t.adds || {}).filter(([, r]) => r === x.rid).map(([pid]) => pname(pid));
+      const gaveP = Object.entries(t.drops || {}).filter(([, r]) => r === x.rid).map(([pid]) => pname(pid));
+      const gotK = (t.draft_picks || []).filter(p => p.owner_id === x.rid), gaveK = (t.draft_picks || []).filter(p => p.previous_owner_id === x.rid);
+      const pickWords = ks => { const by = {}; for (const k of ks) by[k.round] = (by[k.round] || 0) + 1; const nm = r => r === 1 ? "1st" : r === 2 ? "2nd" : r === 3 ? "3rd" : r + "th"; const parts = Object.keys(by).sort().map(r => by[r] === 1 ? `a ${nm(+r)}` : `${["", "", "two", "three", "four", "five"][by[r]] || by[r]} ${nm(+r)}s`); return parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0] || ""; };
+      const list = a => a.length > 2 ? a.slice(0, -1).join(", ") + " and " + a[a.length - 1] : a.join(" and ");
+      if (gotP.length >= 2 && gaveK.length >= 2) c.push(["buyer", 9, { ...base, got: list(gotP), picks: pickWords(gaveK) }]);
+      else if (gotK.length >= 2 && gaveP.length >= 1) c.push(["seller", 9, { ...base, gave: list(gaveP), picks: pickWords(gotK) }]);
     }
     if (left[x.rid] === maxLeft && maxLeft > 0) c.push(["bench", 6, { ...base, left: fmt(maxLeft, 0) }]);
     if (left[x.rid] === minLeft && maxLeft - minLeft > 20) c.push(["coach", 4, base]);
