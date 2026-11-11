@@ -2644,6 +2644,38 @@ async function buildPowerBoth(s) {
   }
   return { ...cur, prevData: prev, sPrev };
 }
+/* The league's power-rankings rules, layered on top of the model:
+   1. Last week's rankings are the baseline: this week's numbers move a team, they don't reset it.
+   2. One big week moves you a little; back-to-back big (or awful) weeks move you a lot.
+   3. Beat a team ranked just above you and you pass them.
+   4. Everything stays tied to overall chances, so a win streak by a weak team doesn't vault it. */
+function applyRankingRules(s, rows, prev, thru) {
+  const all = s.standings.flatMap(r => r.scores.filter(x => x.week <= thru).map(x => x.pts)), m = mean(all), sdv = sd(all) || 20;
+  for (const x of rows) {
+    x.base = x.zz;
+    const pr = prev?.find(y => y.rid === x.rid);
+    const carry = pr ? 0.4 * pr.zz : 0;
+    if (pr) { x.zz = 0.6 * x.zz + carry; x.parts = x.parts.map(p => ({ ...p, v: p.v * 0.6 })); x.parts.push({ lbl: "Last week", v: 18 * carry }); }
+    const last2 = x.r.scores.filter(y => y.week <= thru).slice(-2).map(y => y.pts);
+    let surge = 0;
+    if (last2.length === 2 && last2.every(v => v >= m + 0.75 * sdv)) surge = 0.18;
+    if (last2.length === 2 && last2.every(v => v <= m - 0.75 * sdv)) surge = -0.18;
+    if (surge) { x.zz += surge; x.parts.push({ lbl: surge > 0 ? "Back-to-back big weeks" : "Back-to-back duds", v: 18 * surge }); }
+    x.surge = surge;
+  }
+  rows.sort((a, b) => b.zz - a.zz);
+  // Head-to-head: the winner passes the loser if they were close (within ~6 power points)
+  for (const g of s.games.filter(g => g.week === thru && g.final && !g.post)) {
+    const [w, l] = g.a.pts >= g.b.pts ? [g.a, g.b] : [g.b, g.a];
+    if (w.pts === l.pts) continue;
+    const W = rows.find(x => x.rid === w.rid), L = rows.find(x => x.rid === l.rid);
+    if (!W || !L || W.zz >= L.zz || L.zz - W.zz > 0.35) continue;
+    const bump = L.zz - W.zz + 0.002;
+    W.zz += bump; W.parts.push({ lbl: `Beat ${teamName(L.oid)}`, v: 18 * bump }); W.h2h = L;
+  }
+  rows.sort((a, b) => b.zz - a.zz);
+  rows.forEach((x, i) => { x.rank = i + 1; x.score = Math.max(1, Math.min(99, Math.round(50 + 18 * x.zz))); });
+}
 function viewPower() {
   const s = M.cur;
   if (!s.standings.some(r => r.scores.length)) return `<div class="section-h"><div><h2>Power Rankings</h2></div></div><div class="panel"><p class="muted" style="margin:0">Power rankings start once week 1 is in the books.</p></div>`;
@@ -2657,6 +2689,8 @@ function viewPower() {
   const regThru = Math.min(s.lastDone === 99 ? s.pws - 1 : s.lastDone, s.pws - 1);
   const rows = powerTable(s, d, regThru);
   const prev = d.prevData ? powerTable(d.sPrev, d.prevData, regThru - 1) : null;
+  if (prev) applyRankingRules(d.sPrev, prev, null, regThru - 1);   // last week's published order is the baseline
+  applyRankingRules(s, rows, prev, regThru);
   const weeks = range(1, regThru);
   const heat = x => weeks.map(w => {
     const all = s.games.filter(g => g.week === w && g.final && !g.post).flatMap(g => [g.a, g.b]).sort((a, b) => b.pts - a.pts);
@@ -2694,15 +2728,22 @@ function viewPower() {
   }).join("");
   const fav = rows[0];
   return `<div class="section-h"><div><div class="eyebrow">${s.year} · after week ${regThru}${d.fut.length ? ` · ${plural(d.fut.filter(w => w < s.pws).length, "week")} left` : ""}</div><h2>Power Rankings</h2></div></div>
-    <p class="recap-lead" style="margin-top:0">${esc(`${teamName(fav.oid)} sits on top${fav.title ? ` with ${pct(fav.title)} title odds` : ""}.`)} ${prev ? (() => { const moves = rows.map(x => ({ x, mv: prev.find(y => y.rid === x.rid).rank - x.rank })).sort((a, b) => b.mv - a.mv); const up = moves[0], dn = moves[moves.length - 1]; return esc(`${up.mv > 0 ? `Biggest riser: ${teamName(up.x.oid)} (up ${up.mv}).` : ""} ${dn.mv < 0 ? `Biggest faller: ${teamName(dn.x.oid)} (down ${-dn.mv}).` : ""}`); })() : ""}</p>
+    <p class="recap-lead" style="margin-top:0">${esc(`${teamName(fav.oid)} sits on top${fav.title ? ` with ${pct(fav.title)} title odds` : ""}.`)} ${prev ? (() => { const moves = rows.map(x => ({ x, mv: prev.find(y => y.rid === x.rid).rank - x.rank })).sort((a, b) => b.mv - a.mv); const up = moves[0], dn = moves[moves.length - 1]; const h = rows.filter(x => x.h2h).map(x => `${teamName(x.oid)} beat ${teamName(x.h2h.oid)} and passes them`); return esc(`${up.mv > 0 ? `Biggest riser: ${teamName(up.x.oid)} (up ${up.mv}).` : ""} ${dn.mv < 0 ? `Biggest faller: ${teamName(dn.x.oid)} (down ${-dn.mv}).` : ""} ${h.length ? `Head-to-head: ${h.join("; ")}.` : ""}`); })() : ""}</p>
     <div class="pws">${cards}</div>
     <details class="pw-method"><summary>How the rankings work</summary><div class="note">
-      <p><b>Power score</b> (50 = league average) blends four things from this season only, and the chips under each team show how much each one added or took away:</p>
+      <p><b>Power score</b> (50 = league average) starts from four things from this season only. The chips under each team show how much each piece added or took away, including last week's baseline and any bonuses below:</p>
       <ul>
         <li><b>Strength (45%)</b>: what a team should score in a typical week from here on, also shown as points per week above or below an average team. Half is how it has played (season average, nudged toward the league average early in the year, plus the last three weeks). Half is its roster: the best lineup it can field in each remaining week including the playoffs, from Sleeper's weekly projections, put on this league's scoring scale. Byes and injuries lower the weeks they hit; injured-reserve players count again after this week; taxi-squad players don't count; trades and pickups count as soon as they happen.</li>
         <li><b>All-play record (20%)</b>: each week's score against every other team that week, so schedule luck doesn't count.</li>
         <li><b>Record (15%)</b>: actual wins and losses. Results matter, just not as much as how a team plays.</li>
         <li><b>Title odds (20%)</b>: from ${CONFIG.SIMULATIONS.toLocaleString()} simulations of the rest of the season and the playoff bracket, using each team's strength week by week.</li>
+      </ul>
+      <p><b>Then the league's power-rankings rules are applied:</b></p>
+      <ul>
+        <li><b>Last week is the baseline.</b> Each week's ranking is 60% this week's numbers and 40% where the team stood last week, so one result moves a team but doesn't reset it, and the standings alone don't decide it.</li>
+        <li><b>Don't overreact to one week, but back-to-back big weeks count.</b> One big score only nudges the strength numbers. Two straight weeks well above the league average (roughly 150-point territory) add an extra boost, and two straight duds cost a team.</li>
+        <li><b>Beat the team above you and you pass them.</b> If two closely ranked teams played this week, the winner moves ahead of the loser.</li>
+        <li><b>Overall chances still rule.</b> Because most of the score is strength and title odds, a win streak by a team with weak scoring or a thin roster doesn't move it much.</li>
       </ul>
       <p><b>Lineup efficiency</b> is the share of its best possible score a team has actually started. Projections assume perfect start/sit decisions, so each team's roster projection is nudged up or down (up to 8%) by how well it really sets lineups compared with the league. <b>Opp ahead</b> is the average projected score of the opponents left on the regular-season schedule. <b>Arrows</b> compare against a full re-run of last week's rankings, using the standings and rosters as they were then. The squares show each week's scoring rank, darkest for the top score; the bars show the roster's projected best lineup for each week ahead. Tiers come from the odds: title favorite (25%+ title odds), contender (75%+ playoff odds), bubble, long shot, lottery bound.</p>
     </div></details>`;
