@@ -538,6 +538,19 @@ details.pw-method summary{cursor:pointer;font:600 12px/1 var(--mono);text-transf
 details.pw-method .note{max-width:80ch}
 details.pw-method ul{padding-left:18px;margin:6px 0}
 details.pw-method li{margin-bottom:6px}
+/* breaking news */
+.breaking{background:#b0121c;color:#fff;margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:0 max(16px,env(safe-area-inset-left,0px));animation:bkin .4s ease-out}
+.bk-in{display:flex;align-items:center;gap:10px 14px;padding-block:10px}
+.bk-tag{flex:none;display:inline-flex;align-items:center;gap:7px;background:#fff;color:#b0121c;font:800 15px/1 var(--display);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;border-radius:4px}
+.bk-tag .dot.live{background:#b0121c}
+.bk-body{flex:1;min-width:0;font-size:15px;line-height:1.4}
+.bk-body b{font:800 17px/1.2 var(--display);text-transform:uppercase;letter-spacing:.02em;margin-right:4px}
+.bk-ago{font:500 11px var(--mono);opacity:.8;white-space:nowrap}
+.bk-x{flex:none;background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:50%;width:28px;height:28px;font-size:18px;line-height:1;cursor:pointer}
+.bk-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@keyframes bkin{from{transform:translateY(-6px);opacity:0}to{transform:none;opacity:1}}
+@media (max-width:640px){.bk-in{flex-wrap:wrap}.bk-body{flex-basis:calc(100% - 50px);order:3}}
+@media (prefers-reduced-motion:reduce){.breaking{animation:none}}
 /* landing gate */
 body.locked .top, body.locked footer{display:none}
 .gate{min-height:calc(100vh - 40px);display:grid;place-items:center;padding-block:40px}
@@ -583,6 +596,7 @@ body.locked .top, body.locked footer{display:none}
   </div>
   <div class="ticker" id="ticker" hidden></div>
 </header>
+<div id="breaking"></div>
 <div class="wrap">
   <main id="app"><div class="loader"><div class="big">Warming up</div><p class="muted" id="progress">Connecting to Sleeper…</p></div></main>
   <footer>
@@ -604,6 +618,10 @@ const CONFIG = {
   // Franchises are tracked by roster slot, so a new owner inherits the old history automatically.
   // List team names that are the same franchise as a safety net (case and spacing don't matter).
   FRANCHISE_LINKS: [["WOWNICETITSREVENGE", "DC GOONERS"]],
+  // Breaking news banner. Add, edit or delete items; an empty list hides the banner.
+  BREAKING: [
+    { kicker: "Breaking", head: "Horn Dogs closing in on a trade", text: "Horn Dogs are reportedly closing in on a deal with an unknown suitor. Per reports, they'd add two 2027 draft picks on top of the five they already hold. Developing.", posted: "2026-11-10T19:40:00-05:00" }
+  ],
   // Landing-page password, stored as a SHA-256 hash (current password: "dynasty").
   // Set to "" to turn the gate off. This keeps casual visitors out; it is not real security.
   PASSWORD_SHA256: "813cf1ca6462bbb705fb271973c7a98604e6bd7636a2997864f0a63752f65314"
@@ -3203,7 +3221,18 @@ function render() {
   }
   renderFooter();
 }
+function renderBreaking() {
+  const el = $("#breaking"); if (!el) return;
+  let gone = []; try { gone = JSON.parse(localStorage.getItem("breaking-dismissed") || "[]"); } catch {}
+  const items = (CONFIG.BREAKING || []).filter(b => b && b.text && !gone.includes(hash(b.head + b.text)));
+  el.innerHTML = items.map(b => {
+    const ago = b.posted ? (() => { const m = Math.round((Date.now() - new Date(b.posted)) / 60000); return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : new Date(b.posted).toLocaleDateString([], { month: "short", day: "numeric" }); })() : "";
+    return `<div class="breaking" role="status"><div class="wrap bk-in"><span class="bk-tag"><span class="dot live"></span>${esc(b.kicker || "Breaking")}</span><div class="bk-body"><b>${esc(b.head || "")}</b> ${esc(b.text)}${ago ? ` <span class="bk-ago">${esc(ago)}</span>` : ""}</div><button class="bk-x" type="button" data-bk="${hash(b.head + b.text)}" aria-label="Dismiss this news">×</button></div></div>`;
+  }).join("");
+}
+document.addEventListener("click", e => { const x = e.target.closest("[data-bk]"); if (!x) return; let gone = []; try { gone = JSON.parse(localStorage.getItem("breaking-dismissed") || "[]"); } catch {} gone.push(+x.dataset.bk); try { localStorage.setItem("breaking-dismissed", JSON.stringify(gone)); } catch {} renderBreaking(); });
 function renderFooter() {
+  renderBreaking();
   renderTicker();
   const lbl = { sleeper: "Sleeper league", projections: "Weekly projections", schedule: "NFL game status", clock: "Game times", values: "Dynasty values" };
   $("#sources").innerHTML = Object.entries(lbl).filter(([k]) => k in SOURCES).map(([k, v]) => `<span class="${SOURCES[k] ? "" : "off"}" title="${SOURCES[k] ? "Loaded" : "Unavailable right now"}">${v}</span>`).join("");
