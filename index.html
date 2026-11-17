@@ -717,7 +717,8 @@ async function loadSeasonRaw(lg, nfl) {
   const weeks = {}, tx = {};
   await pool(range(1, lastWeek).map(w => async () => {
     const past = done || w < curWeek;
-    const ttl = done ? FOREVER : past ? 6 * HOUR : 45e3;
+    // the week that just finished keeps refreshing briefly, so late scores and stat corrections come through
+    const ttl = done ? FOREVER : w === curWeek - 1 ? (nfl.closedEarly ? MIN : 30 * MIN) : past ? 6 * HOUR : 45e3;
     const [m, t] = await Promise.all([
       getJSON(`${base}/matchups/${w}`, { ttl, optional: true }),
       (done || w <= curWeek) ? getJSON(`${base}/transactions/${w}`, { ttl: done ? FOREVER : 15 * MIN, optional: true }) : null
@@ -753,7 +754,13 @@ async function loadPlayers() {
 
 async function loadAll(leagueId) {
   progress("Reading the NFL calendar…");
-  const nfl = await getJSON(`${API}/state/nfl`, { ttl: 5 * MIN, source: "sleeper" });
+  let nfl = await getJSON(`${API}/state/nfl`, { ttl: 5 * MIN, source: "sleeper" });
+  // Close out the week as soon as its last NFL game is final (per ESPN), instead of waiting for Sleeper's midweek rollover
+  if (nfl?.season_type === "regular" && nfl.week >= 1 && nfl.week < 18) {
+    const sb = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${nfl.season}&seasontype=2&week=${nfl.week}`, { ttl: 2 * MIN, optional: true });
+    const evs = sb?.events || [];
+    if (evs.length && evs.every(e => e.status?.type?.state === "post")) nfl = { ...nfl, week: nfl.week + 1, closedEarly: true };
+  }
   const chain = []; let id = leagueId; const seen = new Set();
   while (id && id !== "0" && !seen.has(id) && chain.length < CONFIG.MAX_SEASONS) {
     seen.add(id);
