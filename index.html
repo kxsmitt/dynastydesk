@@ -3089,6 +3089,97 @@ function returnsSection() {
     <p class="tquip" style="margin:6px 0 0">${esc(topQ)}${botQ ? " " + esc(botQ) : ""}</p>${bestHTML}`);
 }
 
+/* ---------------- draft value: every rookie pick vs. what its slot usually produces ----------------
+   Production = all fantasy points the player has scored on any roster since he was drafted, divided by the
+   league weeks played since then (so injuries, cuts and benchings count against him). The expected value for
+   each slot comes from a curve fitted to this league's own picks: value = a + b * ln(overall pick). */
+function draftValue() {
+  const weeks = [];
+  for (const s of M.seasons) for (const w of range(1, Math.min(18, s.lastDone === 99 ? 18 : s.lastDone))) if ((s.raw.weeks[w] || []).some(e => ptsOf(e) > 0)) weeks.push({ y: s.year, w });
+  const ptsBy = {};
+  for (const s of M.seasons) for (const [wk, entries] of Object.entries(s.raw.weeks)) {
+    if (+wk > s.lastDone) continue;
+    for (const e of entries || []) for (const [pid, p] of Object.entries(e.players_points || {})) (ptsBy[pid] ||= []).push({ y: s.year, w: +wk, p: +p || 0 });
+  }
+  const cur = M.cur, curOwner = {};
+  for (const r of cur.raw.rosters) for (const pid of r.players || []) curOwner[pid] = cur.ownerOf[r.roster_id];
+  const picks = [];
+  for (const s of M.seasons) for (const d of s.raw.drafts) {
+    if (d.status !== "complete" || (d.settings?.rounds || 99) > 6) continue;
+    const T = d.settings?.teams || s.raw.rosters.length, yr = +d.season;
+    const n = weeks.filter(x => x.y >= yr).length;
+    if (!n) continue;
+    for (const p of s.raw.draftPicks[d.draft_id] || []) {
+      if (!p.player_id) continue;
+      const tot = sum((ptsBy[p.player_id] || []).filter(x => x.y >= yr).map(x => x.p));
+      const oid = pickOwner(p, s);
+      picks.push({ pid: p.player_id, name: p.metadata?.first_name ? `${p.metadata.first_name} ${p.metadata.last_name}` : pname(p.player_id), pos: p.metadata?.position || ppos(p.player_id),
+        season: d.season, round: p.round, slot: p.draft_slot || (((p.pick_no - 1) % T) + 1), overall: p.pick_no, oid, v: tot / n, weeks: n, kept: oid && curOwner[p.player_id] === oid, now: curOwner[p.player_id] || null });
+    }
+  }
+  if (picks.length < 4) return null;
+  // least-squares fit of value on ln(pick)
+  const xs = picks.map(p => Math.log(p.overall)), ys = picks.map(p => p.v), mx = mean(xs), my = mean(ys);
+  // later picks shouldn't be expected to out-produce earlier ones, so the slope can't go positive
+  const b = Math.min(0, sum(xs.map((x, i) => (x - mx) * (ys[i] - my))) / (sum(xs.map(x => (x - mx) ** 2)) || 1)), a = my - b * mx;
+  const exp = o => Math.max(0.5, a + b * Math.log(o));
+  for (const p of picks) { p.exp = exp(p.overall); p.diff = p.v - p.exp; }
+  const teams = {};
+  for (const p of picks) { if (!p.oid) continue; const t = teams[p.oid] ||= { oid: p.oid, n: 0, diff: 0, best: null }; t.n++; t.diff += p.diff; if (!t.best || p.diff > t.best.diff) t.best = p; }
+  return { picks, exp, teams: Object.values(teams).sort((x, y) => y.diff - x.diff) };
+}
+
+const DV_STEAL = [
+  (P, T, L) => `${P} went ${L} and is producing like a first-rounder. ${T}'s war room is taking a victory lap.`,
+  (P, T, L) => `${T} grabbed ${P} at ${L}. Everyone else in that draft would like a word with their scouts.`,
+  (P, T, L) => `${P} at ${L} is the kind of pick that wins trade negotiations for years. Well done, ${T}.`
+];
+const DV_REACH = [
+  (P, T, L) => `${T} spent ${L} on ${P}. The receipt has been kept, just in case.`,
+  (P, T, L) => `${P} at ${L} hasn't paid off yet. ${T} insists it's a "long-term play."`,
+  (P, T, L) => `${T} took ${P} at ${L}. In fairness, the draft board was probably upside down.`
+];
+
+function valueSection() {
+  const D = draftValue();
+  if (!D) return section("value", "Draft Value", "", `<div class="panel"><p class="muted" style="margin:0">Draft value needs at least one completed rookie draft with games played since.</p></div>`);
+  const lbl = p => `${p.season} ${p.round}.${String(p.slot).padStart(2, "0")}`;
+  const steals = [...D.picks].sort((x, y) => y.diff - x.diff).filter(p => p.diff > 0).slice(0, 8);
+  const reaches = [...D.picks].filter(p => p.round <= 2).sort((x, y) => x.diff - y.diff).filter(p => p.diff < 0).slice(0, 8);
+  // chart
+  const W = 760, H = 300, L = 46, R = 14, T = 14, B = 34;
+  const maxO = Math.max(...D.picks.map(p => p.overall)), maxV = Math.max(5, ...D.picks.map(p => p.v), ...D.picks.map(p => p.exp)) * 1.08;
+  const X = o => L + (o - 1) / Math.max(1, maxO - 1) * (W - L - R), Y = v => T + (1 - v / maxV) * (H - T - B);
+  const curve = range(1, maxO).map((o, i) => `${i ? "L" : "M"}${X(o).toFixed(1)},${Y(D.exp(o)).toFixed(1)}`).join("");
+  const yt = []; const step = maxV > 12 ? 4 : 2; for (let v = 0; v <= maxV; v += step) yt.push(v);
+  const per = M.cur.league.total_rosters || M.cur.raw.rosters.length;
+  const rounds = range(1, Math.ceil(maxO / per));
+  const labelled = new Set([...steals.slice(0, 3), ...reaches.slice(0, 2)]);
+  const dots = D.picks.map(p => `<g><circle cx="${X(p.overall)}" cy="${Y(p.v)}" r="5.5" fill="${p.oid ? color(p.oid) : "var(--muted)"}" stroke="var(--surface)" stroke-width="2"><title>${esc(p.name)} (${esc(p.pos)}) · ${lbl(p)} by ${esc(p.oid ? teamName(p.oid) : "unknown")} · ${fmt(p.v)} pts/wk vs ${fmt(p.exp)} expected</title></circle>${labelled.has(p) ? `<text x="${X(p.overall) + 8}" y="${Y(p.v) - 7}" style="fill:var(--fg);font-weight:600">${esc(p.name.split(" ").slice(-1)[0])}</text>` : ""}</g>`).join("");
+  const chart = `<div class="panel"><div class="chart-scroll"><svg viewBox="0 0 ${W} ${H}" class="wp-big" role="img" aria-label="Points per week since drafted, by overall pick">
+    ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-dasharray="2 4"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+    ${rounds.map(r => `<text x="${X((r - 1) * per + (per + 1) / 2)}" y="${H - 14}" text-anchor="middle">Round ${r}</text>${r > 1 ? `<line x1="${X((r - 1) * per + 0.5)}" x2="${X((r - 1) * per + 0.5)}" y1="${T}" y2="${H - B}" stroke="var(--line)"/>` : ""}`).join("")}
+    <path d="${curve}" fill="none" stroke="var(--fg)" stroke-width="2" stroke-dasharray="6 4" opacity=".7"/>
+    ${dots}
+  </svg></div><div class="legend" style="margin-top:8px"><span><i class="lg-med"></i>Expected for that slot</span><span>Above the line = outperforming the pick · below = underperforming · dot color = team that drafted him · hover for details</span></div></div>`;
+  const row = p => `<tr><td class="mono">${lbl(p)}</td><td><b>${esc(p.name)}</b> <span class="muted" style="font-size:12px">${esc(p.pos)}</span></td><td><span class="chip" style="background:${p.oid ? color(p.oid) : "var(--muted)"}"></span>${esc(p.oid ? teamName(p.oid) : "–")}</td><td class="n">${fmt(p.v)}</td><td class="n muted">${fmt(p.exp)}</td><td class="n mono ${p.diff >= 0 ? "up" : "dn"}">${p.diff >= 0 ? "+" : "−"}${fmt(Math.abs(p.diff))}</td><td>${p.kept ? '<span class="pill in">Still there</span>' : p.now ? `<span class="muted" style="font-size:12px">Now on ${esc(teamName(p.now))}</span>` : '<span class="muted" style="font-size:12px">Free agent</span>'}</td></tr>`;
+  const head = `<thead><tr><th>Pick</th><th>Player</th><th>Drafted by</th><th class="n">Pts/wk</th><th class="n">Expected</th><th class="n">+/−</th><th>Status</th></tr></thead>`;
+  const tbl = (arr, empty) => arr.length ? `<div class="tbl-wrap"><table>${head}<tbody>${arr.map(row).join("")}</tbody></table></div>` : `<p class="muted">${empty}</p>`;
+  const s0 = steals[0], r0 = reaches[0];
+  const quip = [s0 ? fresh(DV_STEAL, s0.pid + "dv", s0.name, teamName(s0.oid), lbl(s0)) : "", r0 ? fresh(DV_REACH, r0.pid + "dr", r0.name, teamName(r0.oid), lbl(r0)) : ""].filter(Boolean).join(" ");
+  const maxT = Math.max(1, ...D.teams.map(t => Math.abs(t.diff)));
+  const board = `<div class="panel"><h4 class="mini">Best drafters by value</h4><p class="note" style="margin:-4px 0 10px">Every pick's points per week above or below its slot's expectation, added up by the team that made it.</p>
+    <div class="luckrows">${D.teams.map(t => { const w = Math.abs(t.diff) / maxT * 50; return `<div class="luckrow tr-row"><span class="fn">${esc(teamName(t.oid))}</span><span class="lbar"><i style="${t.diff >= 0 ? `left:50%;width:${w}%;background:var(--win)` : `right:50%;width:${w}%;background:var(--loss)`}"></i></span><span class="mono lv">${t.diff >= 0 ? "+" : "−"}${fmt(Math.abs(t.diff))}</span><span class="mono muted tr-rec">${plural(t.n, "pick")}</span></div>`; }).join("")}</div></div>`;
+  return section("value", "Draft Value", "Every rookie pick against what its draft slot usually produces",
+    `<div class="stack" style="gap:22px">
+      ${quip ? `<p class="tquip" style="margin:0">${esc(quip)}</p>` : ""}
+      ${chart}
+      <div class="stack" style="gap:18px"><div><h4 class="mini">Biggest steals</h4>${tbl(steals, "No picks have beaten their slot yet.")}</div><div><h4 class="mini">Biggest reaches <span class="muted" style="font-size:12px;font-family:var(--mono)">(rounds 1–2)</span></h4>${tbl(reaches, "Every early pick is holding up. Impressive.")}</div></div>
+      ${board}
+      <p class="note">Pts/wk is every fantasy point the player has scored on any roster in this league since his draft, divided by the league weeks played since then, so injuries, benchings and getting cut all count against him. Expected is what that overall pick has typically produced in this league, from a curve fitted to all of the league's rookie picks; with only a few drafts on Sleeper so far, treat it as a rough baseline that will sharpen each year. Rookie drafts on Sleeper only. Current-season rookies have had less time, so judge them gently.</p>
+    </div>`);
+}
+
 /* ---------------- draft tab ---------------- */
 function pickLabel(round, slot) { return `${round}.${String(slot).padStart(2, "0")}`; }
 
@@ -3188,8 +3279,9 @@ function viewDraft() {
     out.push(section("past", "Draft Archive", "Every rookie draft since the move to Sleeper. The startup draft was held on Yahoo.", `<div class="jump">${tabs}</div>${verdict}${board}<p class="note">Points per game are from the current season, while the player was on a fantasy roster.</p>`));
   }
 
+  out.push(valueSection());
   out.push(returnsSection());
-  const jumps = [["order", "Draft order"], ["race101", "1.01 race"], ["capital", "Pick holdings"], ["past", "Archive"], ["returns", "Draft returns"]]
+  const jumps = [["order", "Draft order"], ["race101", "1.01 race"], ["capital", "Pick holdings"], ["past", "Archive"], ["value", "Draft value"], ["returns", "Draft returns"]]
     .filter(([id]) => out.some(h => h && h.includes(`id="sec-${id}"`))).map(([id, l]) => `<button class="btn" type="button" data-jump="sec-${id}">${l}</button>`).join("");
   return `<div class="section-h"><div><div class="eyebrow">${draftYear} rookie draft · ${plural(rounds, "round")}</div><h2>The Draft Room</h2></div><div class="jump">${jumps}</div></div>
     <div class="stack" style="gap:36px">${out.filter(Boolean).join("")}</div>`;
